@@ -3,7 +3,7 @@ import GoogleMaps from './GoogleMaps';
 import { vehicleAPI, locationAPI } from '../../services/api';
 import type { Vehicle, LocationLog } from '../../types';
 import type { MapLocation, RouteOptions } from '../../types/google-maps';
-import { MapPin, Route, Navigation, Truck, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Route, Navigation, Truck, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 // Color palette for different vehicles
 const VEHICLE_COLORS = [
@@ -116,7 +116,7 @@ const AllVehiclesMap: React.FC = () => {
     
     // Create routes for each vehicle
     let colorIndex = 0;
-    vehicleGroups.forEach((group, vehicleId) => {
+    vehicleGroups.forEach((group) => {
       const { vehicle, logs } = group;
       
       if (logs.length > 0) {
@@ -219,7 +219,7 @@ const AllVehiclesMap: React.FC = () => {
 
         {/* Vehicle List */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {vehicleRoutes.map((route, index) => (
+          {vehicleRoutes.map((route) => (
             <div 
               key={route.vehicle.id}
               className="flex items-center justify-between p-3 border rounded-lg"

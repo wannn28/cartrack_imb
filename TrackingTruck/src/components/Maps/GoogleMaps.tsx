@@ -269,7 +269,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
     if (allVehicleRoutes && allVehicleRoutes.length > 0) {
       const bounds = new google.maps.LatLngBounds();
       
-      allVehicleRoutes.forEach((routeData, index) => {
+      allVehicleRoutes.forEach((routeData) => {
         const { origin, destination, waypoints = [] } = routeData.routeOptions;
         
         // Create path from origin → waypoints → destination
@@ -435,8 +435,8 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
     });
 
     // Create polylines for each vehicle's historical route
-    vehicleGroups.forEach((group, vehicleId) => {
-      const { vehicle, color, positions } = group;
+    vehicleGroups.forEach((group) => {
+      const { color, positions } = group;
       
       if (positions.length > 1) {
         // Sort positions by timestamp to create proper route
@@ -463,7 +463,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
     // Create markers for current replay positions
     // Only show vehicle icons at the latest position for each vehicle
     const latestPositions = new Map();
-    replayData.currentPositions.forEach((position, index) => {
+    replayData.currentPositions.forEach((position) => {
       const vehicleId = position.vehicle.id;
       const positionTime = new Date(position.timestamp).getTime();
       
@@ -475,7 +475,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
     });
     
     // Create markers only for the latest positions
-    latestPositions.forEach((position, vehicleId) => {
+    latestPositions.forEach((position) => {
       // Use direction from position data for rotation, fallback to 0 if not available
       const rotation = position.direction || 0;
       

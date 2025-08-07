@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import GoogleMaps from './GoogleMaps';
 import { vehicleAPI, locationAPI } from '../../services/api';
 import type { Vehicle, LocationLog } from '../../types';
-import type { MapLocation, RouteOptions } from '../../types/google-maps';
-import { MapPin, Route, Navigation, Truck, RefreshCw, Play, Pause, SkipBack, SkipForward, Clock, Zap, Car } from 'lucide-react';
+import type { MapLocation } from '../../types/google-maps';
+import { Route, Navigation, Truck, RefreshCw, Play, Pause, SkipBack, SkipForward, Clock, Zap, Car } from 'lucide-react';
 
 // Color palette for different vehicles
 const VEHICLE_COLORS = [
@@ -44,7 +44,7 @@ const LiveTrackingReplay: React.FC = () => {
   const [totalCheckpoints, setTotalCheckpoints] = useState(0); // Total number of checkpoints
   const [playbackSpeed, setPlaybackSpeed] = useState(1); // 1x, 2x, 4x, 8x
   
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const minTimestampRef = useRef<number>(Infinity); // Store the earliest timestamp for the selected vehicle
 
   // Fetch vehicles on component mount
@@ -246,16 +246,16 @@ const LiveTrackingReplay: React.FC = () => {
     setPlaybackSpeed(newSpeed);
   };
 
-  const formatTime = (milliseconds: number) => {
-    const seconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
+  // const formatTime = (milliseconds: number) => {
+  //   const seconds = Math.floor(milliseconds / 1000);
+  //   const minutes = Math.floor(seconds / 60);
+  //   const hours = Math.floor(minutes / 60);
     
-    if (hours > 0) {
-      return `${hours}:${String(minutes % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-    }
-    return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
-  };
+  //   if (hours > 0) {
+  //     return `${hours}:${String(minutes % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  //   }
+  //   return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
+  // };
 
   // Get current positions based on replay checkpoint
   const getCurrentPositions = () => {
