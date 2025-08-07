@@ -54,7 +54,7 @@ The application supports configuration through environment variables or `.env` f
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ENV` | `development` | Application environment |
-| `PORT` | `8081` | Server port |
+| `PORT` | `8003` | Server port |
 | `POSTGRES_HOST` | `localhost` | Database host |
 | `POSTGRES_PORT` | `5432` | Database port |
 | `POSTGRES_USER` | `postgres` | Database user |

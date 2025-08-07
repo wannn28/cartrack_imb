@@ -55,7 +55,7 @@ Comprehensive test scenarios covering:
 4. Activate the imported environment
 
 ### Step 3: Start Testing
-1. Ensure Cartrack backend server is running on `localhost:8081`
+1. Ensure Cartrack backend server is running on `localhost:8003`
 2. Start with **Authentication → Register User**
 3. Then **Authentication → Login User**
 4. Access tokens will be automatically stored
@@ -220,7 +220,7 @@ pm.test("Response has meta and data", function () {
 #### 1. "Connection refused"
 - Ensure backend server is running
 - Check `base_url` in environment
-- Verify port number (default: 8081)
+- Verify port number (default: 8003)
 
 #### 2. "Unauthorized" errors
 - Check if tokens are properly set

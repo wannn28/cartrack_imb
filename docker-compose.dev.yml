@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: cartrack_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cartrack_db_dev
+      POSTGRES_USER: cartrack_user
+      POSTGRES_PASSWORD: cartrack_password
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./backend/db/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - cartrack_network_dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cartrack_user -d cartrack_db_dev"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Go Backend API (Development)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cartrack_backend_dev
+    restart: unless-stopped
+    environment:
+      ENV: development
+      PORT: 8003
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: cartrack_user
+      POSTGRES_PASSWORD: cartrack_password
+      POSTGRES_DATABASE: cartrack_db_dev
+      JWT_SECRET_KEY: dev-jwt-secret-key-change-in-production
+      MIGRATION_PATH: db/migrations
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./backend:/app
+      - /app/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cartrack_network_dev
+    command: ["go", "run", "./cmd/app"]
+
+  # React Frontend (Development)
+  frontend:
+    build:
+      context: ./TrackingTruck
+      dockerfile: Dockerfile.dev
+    container_name: cartrack_frontend_dev
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./TrackingTruck:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8003
+    depends_on:
+      - backend
+    networks:
+      - cartrack_network_dev
+    command: ["npm", "run", "dev"]
+
+  # Redis (Optional - for caching)
+  redis:
+    image: redis:7-alpine
+    container_name: cartrack_redis_dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - cartrack_network_dev
+
+volumes:
+  postgres_data_dev:
+    driver: local
+  redis_data_dev:
+    driver: local
+
+networks:
+  cartrack_network_dev:
+    driver: bridge

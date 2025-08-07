@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: cartrack_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cartrack_db
+      POSTGRES_USER: cartrack_user
+      POSTGRES_PASSWORD: cartrack_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - cartrack_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cartrack_user -d cartrack_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Go Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cartrack_backend
+    restart: unless-stopped
+    environment:
+      ENV: production
+      PORT: 8003
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: cartrack_user
+      POSTGRES_PASSWORD: cartrack_password
+      POSTGRES_DATABASE: cartrack_db
+      JWT_SECRET_KEY: your-super-secret-jwt-key-change-this-in-production
+      MIGRATION_PATH: db/migrations
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cartrack_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./TrackingTruck
+      dockerfile: Dockerfile
+    container_name: cartrack_frontend
+    restart: unless-stopped
+    ports:
+      - "3004:80"
+    depends_on:
+      - backend
+    networks:
+      - cartrack_network
+    environment:
+      - REACT_APP_API_URL=http://localhost:8003
+
+  # Nginx Reverse Proxy (Optional)
+  nginx:
+    image: nginx:alpine
+    container_name: cartrack_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - cartrack_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  cartrack_network:
+    driver: bridge

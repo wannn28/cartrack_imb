@@ -11,7 +11,7 @@ import (
 
 type Config struct {
 	ENV            string         `env:"ENV" envDefault:"development" mapstructure:"ENV"`
-	PORT           string         `env:"PORT" envDefault:"8081" mapstructure:"PORT"`
+	PORT           string         `env:"PORT" envDefault:"8003" mapstructure:"PORT"`
 	PostgresConfig PostgresConfig `envPrefix:"POSTGRES_" mapstructure:"POSTGRES"`
 	JWT            JWTConfig      `envPrefix:"JWT_" mapstructure:"JWT"`
 	MigrationPath  string         `env:"MIGRATION_PATH" envDefault:"db/migrations" mapstructure:"MIGRATION_PATH"`

@@ -514,7 +514,7 @@ pm.test("Response has correct structure", function () {
 - Proper error handling for all edge cases
 
 ### Test Environment
-- Local development: http://localhost:8081
+- Local development: http://localhost:8003
 - Staging: https://staging-api.cartrack.com
 - Production: https://api.cartrack.com
 
