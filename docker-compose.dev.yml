@@ -53,9 +53,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: cartrack_db_dev
-      POSTGRES_USER: cartrack_user
-      POSTGRES_PASSWORD: cartrack_password
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Iwandila123.
     volumes:
       - db_data_dev:/var/lib/postgresql/data
       - ./backend/db/migrations:/docker-entrypoint-initdb.d
