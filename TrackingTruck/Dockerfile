@@ -3,8 +3,9 @@ FROM node:20 AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm cache clean --force && \
-    npm install --legacy-peer-deps --registry=https://registry.npmjs.org/
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm cache clean --force && \
+    npm install --legacy-peer-deps --no-audit --no-fund
 
 COPY . .
 
