@@ -1,14 +1,18 @@
-FROM node:20 AS builder
+# Build Stage
+FROM node:20-alpine as builder
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
-RUN npm config set registry https://registry.npmjs.org/ && \
-    npm cache clean --force && \
-    npm install --legacy-peer-deps --no-audit --no-fund
 
+# Install dependencies
+RUN npm ci --only=production=false
+
+# Copy source code
 COPY . .
 
+# Build the application
 RUN npm run build
 
 FROM nginx:alpine
