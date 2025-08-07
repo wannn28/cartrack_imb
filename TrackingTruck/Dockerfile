@@ -15,7 +15,12 @@ COPY . .
 # Build the application
 RUN npm run build
 
-FROM nginx:alpine
+
+
+# Stage 2: Serve the application with nginx
+FROM nginx:alpine AS production
+
+
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
