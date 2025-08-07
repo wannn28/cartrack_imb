@@ -300,3 +300,6 @@ For production deployment:
 - Fixed backend build path (`./cmd/app/main.go`)
 - Fixed port configurations (8003 for backend, 3004 for frontend)
 - Added proper error handling for Docker Desktop not running
+- Updated container naming convention (be-cartrack-imb, fe-cartrack-imb, db-cartrack-imb)
+- Added persistent volumes for uploads and logs
+- Improved environment variable management with .env files

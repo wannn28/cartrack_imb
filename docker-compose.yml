@@ -1,95 +1,73 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: cartrack_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: cartrack_db
-      POSTGRES_USER: cartrack_user
-      POSTGRES_PASSWORD: cartrack_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backend/db/migrations:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
-    networks:
-      - cartrack_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cartrack_user -d cartrack_db"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Go Backend API
+  # Backend service
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: cartrack_backend
+    container_name: be-cartrack-imb
     restart: unless-stopped
-    environment:
-      ENV: production
-      PORT: 8003
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: cartrack_user
-      POSTGRES_PASSWORD: cartrack_password
-      POSTGRES_DATABASE: cartrack_db
-      JWT_SECRET_KEY: your-super-secret-jwt-key-change-this-in-production
-      MIGRATION_PATH: db/migrations
     ports:
       - "8003:8003"
-    depends_on:
-      postgres:
-        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    volumes:
+      # ✅ Persistent storage untuk uploads
+      - uploads_data:/app/uploads
+      # ✅ Volume untuk logs
+      - logs_data:/app/logs
     networks:
-      - cartrack_network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - cartrack-network
+    depends_on:
+      - db
 
-  # React Frontend
+  # Frontend service
   frontend:
     build:
       context: ./TrackingTruck
       dockerfile: Dockerfile
-    container_name: cartrack_frontend
+      target: production
+    container_name: fe-cartrack-imb
     restart: unless-stopped
     ports:
       - "3004:80"
-    depends_on:
-      - backend
-    networks:
-      - cartrack_network
     environment:
+      - NODE_ENV=production
       - REACT_APP_API_URL=http://localhost:8003
-
-  # Nginx Reverse Proxy (Optional)
-  nginx:
-    image: nginx:alpine
-    container_name: cartrack_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - frontend
-      - backend
+      - ./TrackingTruck/logs/nginx:/var/log/nginx
     networks:
-      - cartrack_network
+      - cartrack-network
+    depends_on:
+      - backend
+
+  # PostgreSQL database service
+  db:
+    image: postgres:15-alpine
+    container_name: db-cartrack-imb
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Iwandila123.
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backend/db/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - cartrack-network
 
 volumes:
-  postgres_data:
+  db_data:
+    driver: local
+  # ✅ Persistent volumes untuk uploads dan logs
+  uploads_data:
+    driver: local
+  logs_data:
     driver: local
 
 networks:
-  cartrack_network:
+  cartrack-network:
     driver: bridge
