@@ -295,6 +295,8 @@ For production deployment:
 - Commented out unused `formatTime` function
 
 ### Docker Issues Fixed:
-- Updated frontend Dockerfile to install all dependencies (including dev dependencies)
+- Updated frontend Dockerfile to use Node.js 20 (compatible with React Router v7)
+- Added `--legacy-peer-deps` flag to handle dependency conflicts
+- Fixed backend build path (`./cmd/app/main.go`)
 - Fixed port configurations (8003 for backend, 3004 for frontend)
 - Added proper error handling for Docker Desktop not running
