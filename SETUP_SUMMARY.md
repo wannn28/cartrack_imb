@@ -56,7 +56,7 @@ test-build.bat
 ## 🌐 Access URLs
 
 - **Frontend:** http://localhost:3004
-- **Backend API:** http://localhost:8003
+- **Backend API:** https://trackerapi
 - **Database:** localhost:5432
 
 ## 🔧 Docker Configuration
@@ -145,7 +145,7 @@ MIGRATION_PATH=db/migrations
 
 ### Frontend
 ```bash
-REACT_APP_API_URL=http://localhost:8003
+REACT_APP_API_URL=https://trackerapi
 ```
 
 ## 🆘 Troubleshooting

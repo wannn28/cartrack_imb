@@ -34,7 +34,7 @@ services:
       - "3004:3004"
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:8003
+      - REACT_APP_API_URL=https://trackerapi
     volumes:
       - ./TrackingTruck:/app
       - /app/node_modules

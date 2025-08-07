@@ -34,7 +34,7 @@ services:
       - "3004:80"
     environment:
       - NODE_ENV=production
-      - REACT_APP_API_URL=http://localhost:8003
+      - REACT_APP_API_URL=https://trackerapi
     volumes:
       - ./TrackingTruck/logs/nginx:/var/log/nginx
     networks:

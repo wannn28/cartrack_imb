@@ -66,12 +66,12 @@ cartrack_imb/
 
 ### Development
 - **Frontend:** http://localhost:3004
-- **Backend API:** http://localhost:8003
+- **Backend API:** https://trackerapi
 - **Database:** localhost:5432
 
 ### Production (Docker)
 - **Frontend:** http://localhost:3004
-- **Backend API:** http://localhost:8003
+- **Backend API:** https://trackerapi
 - **Database:** localhost:5432
 
 ## 🔧 Features
@@ -129,7 +129,7 @@ MIGRATION_PATH=db/migrations
 
 #### Frontend
 ```bash
-REACT_APP_API_URL=http://localhost:8003
+REACT_APP_API_URL=https://trackerapi
 ```
 
 ### Database Setup
