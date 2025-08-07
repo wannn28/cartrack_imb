@@ -19,7 +19,7 @@ import (
 
 func main() {
 	cfg, err := configs.NewConfig(".env")
-	initMigration()
+	// initMigration()
 
 	db, err := database.InitDatabase(cfg.PostgresConfig)
 	err = timezone.InitTimezone()
