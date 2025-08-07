@@ -11,6 +11,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
   locations = [],
   showRoute = false,
   routeOptions,
+  routePath,
   onLocationClick,
   onMapClick,
   vehicleInfo,
@@ -39,7 +40,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
         const loader = new Loader({
           apiKey: env.GOOGLE_MAPS_API_KEY,
           version: 'weekly',
-          libraries: ['geometry'], // Only geometry for polyline calculations
+          libraries: ['geometry', 'places'], // Add places for DirectionsService
         });
 
         await loader.load();
@@ -105,10 +106,10 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
   };
 
   // Create vehicle icon with rotation
-  const createVehicleIcon = (rotation: number) => {
+  const createVehicleIcon = (rotation: number, color: string = '#FF0000') => {
     return {
       path: 'M0,-15 L-5,-10 L-5,10 L5,10 L5,-10 Z', // Simple car shape
-      fillColor: '#FF0000',
+      fillColor: color,
       fillOpacity: 1,
       strokeColor: '#000000',
       strokeWeight: 1,
@@ -119,14 +120,14 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
   };
 
   // Create custom vehicle marker with text overlay
-  const createVehicleMarkerWithText = (position: google.maps.LatLng | google.maps.LatLngLiteral, rotation: number, plateNumber?: string, speed?: number) => {
+  const createVehicleMarkerWithText = (position: google.maps.LatLng | google.maps.LatLngLiteral, rotation: number, plateNumber?: string, speed?: number, color?: string) => {
     if (!map) return null;
 
     // Create the vehicle icon
     const vehicleMarker = new google.maps.Marker({
       position: position,
       map: map,
-      icon: createVehicleIcon(rotation),
+      icon: createVehicleIcon(rotation, color || '#FF0000'),
       title: `${plateNumber || 'Vehicle'} - ${speed || 0} km/h - Direction: ${Math.round(rotation)}°`,
       zIndex: 1001,
     });
@@ -136,14 +137,16 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
       private position: google.maps.LatLng;
       private plateNumber: string;
       private speed: number;
+      private color: string;
       private div?: HTMLElement;
 
-      constructor(pos: google.maps.LatLng | google.maps.LatLngLiteral, plate: string, spd: number) {
+      constructor(pos: google.maps.LatLng | google.maps.LatLngLiteral, plate: string, spd: number, vehicleColor: string) {
         super();
         this.position = pos instanceof google.maps.LatLng ? pos : new google.maps.LatLng(pos.lat, pos.lng);
         this.plateNumber = plate || 'N/A';
         this.speed = spd || 0;
-        console.log('VehicleInfoOverlay constructor - plate:', plate, 'speed:', spd);
+        this.color = vehicleColor || '#FF0000';
+        console.log('VehicleInfoOverlay constructor - plate:', plate, 'speed:', spd, 'color:', vehicleColor);
       }
 
       onAdd() {
@@ -163,7 +166,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
         
         this.div.innerHTML = `
           <div style="text-align: center;">
-            <div style="color: #1a73e8; font-size: 11px; font-weight: bold;">${this.plateNumber}</div>
+            <div style="color: ${this.color}; font-size: 11px; font-weight: bold;">${this.plateNumber}</div>
             <div style="color: #ea4335; font-size: 10px; font-weight: bold;">${this.speed} km/h</div>
           </div>
         `;
@@ -198,8 +201,8 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
     }
 
     // Create and attach the text overlay
-    console.log('Creating overlay with plateNumber:', plateNumber, 'speed:', speed);
-    const infoOverlay = new VehicleInfoOverlay(position, plateNumber || 'N/A', speed || 0);
+    console.log('Creating overlay with plateNumber:', plateNumber, 'speed:', speed, 'color:', color);
+    const infoOverlay = new VehicleInfoOverlay(position, plateNumber || 'N/A', speed || 0, color || '#FF0000');
     infoOverlay.setMap(map);
 
     return { marker: vehicleMarker, overlay: infoOverlay };
@@ -255,7 +258,19 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
 
   // Handle routing with simple polyline and directional vehicle icons
   useEffect(() => {
+    console.log('🗺️ GoogleMaps routing effect triggered:', {
+      hasMap: !!map,
+      isLoaded,
+      showRoute,
+      hasRouteOptions: !!routeOptions,
+      hasRoutePath: !!routePath,
+      routePathLength: routePath?.path?.length || 0,
+      hasAllVehicleRoutes: !!allVehicleRoutes,
+      allVehicleRoutesLength: allVehicleRoutes?.length || 0
+    });
+    
     if (!map || !isLoaded || !showRoute) {
+      console.log('❌ Early return from routing effect');
       return;
     }
 
@@ -270,14 +285,29 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
       const bounds = new google.maps.LatLngBounds();
       
       allVehicleRoutes.forEach((routeData) => {
-        const { origin, destination, waypoints = [] } = routeData.routeOptions;
+        // Use Google Directions API route if available, otherwise fallback to direct path
+        let path: Array<{ lat: number; lng: number }>;
         
-        // Create path from origin → waypoints → destination
-        const path = [
-          { lat: origin.lat, lng: origin.lng },
-          ...waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })),
-          { lat: destination.lat, lng: destination.lng }
-        ];
+        console.log(`Processing route for ${routeData.vehicle.plate_number}:`, {
+          hasRoutePath: !!routeData.routePath,
+          routePathLength: routeData.routePath?.path?.length || 0,
+          routeOptions: routeData.routeOptions
+        });
+        
+        if (routeData.routePath && routeData.routePath.path.length > 0) {
+          // Use the route from Google Directions API
+          path = routeData.routePath.path;
+          console.log(`✅ Using Google Directions route for ${routeData.vehicle.plate_number} with ${path.length} points`);
+        } else {
+          // Fallback to direct path - this is why you see straight lines
+          const { origin, destination, waypoints = [] } = routeData.routeOptions;
+          path = [
+            { lat: origin.lat, lng: origin.lng },
+            ...waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })),
+            { lat: destination.lat, lng: destination.lng }
+          ];
+          console.log(`⚠️ Using direct path for ${routeData.vehicle.plate_number} with ${path.length} points (Google Directions API failed)`);
+        }
 
         // Create polyline for this vehicle's route
         const polyline = new google.maps.Polyline({
@@ -306,7 +336,8 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
             lastPoint, 
             finalBearing, 
             plateNumber, 
-            currentSpeed
+            currentSpeed,
+            routeData.color
           );
           
           if (vehicleMarkerInfo) {
@@ -326,12 +357,22 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
       // Single route display (original logic)
       const { origin, destination, waypoints = [] } = routeOptions;
 
-      // Create path from origin → waypoints → destination
-      const path = [
-        { lat: origin.lat, lng: origin.lng },
-        ...waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })),
-        { lat: destination.lat, lng: destination.lng }
-      ];
+      // Use Google Directions API route if available, otherwise fallback to direct path
+      let path: Array<{ lat: number; lng: number }>;
+      
+      if (routePath && routePath.path.length > 0) {
+        // Use the route from Google Directions API
+        path = routePath.path;
+        console.log(`✅ Using Google Directions route with ${path.length} points`);
+      } else {
+        // Fallback to direct path - this is why you see straight lines
+        path = [
+          { lat: origin.lat, lng: origin.lng },
+          ...waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })),
+          { lat: destination.lat, lng: destination.lng }
+        ];
+        console.log(`⚠️ Using direct path with ${path.length} points (Google Directions API failed)`);
+      }
 
       // Create polyline for clean route visualization
       polylineRef.current = new google.maps.Polyline({
@@ -387,7 +428,8 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
           lastPoint, 
           finalBearing, 
           plateNumber, 
-          speed
+          speed,
+          '#4285F4' // Use Google Blue for single route
         );
         
         if (vehicleMarkerInfo) {

@@ -19,11 +19,18 @@ export interface RouteOptions {
   travelMode?: google.maps.TravelMode;
 }
 
+export interface RoutePath {
+  path: Array<{ lat: number; lng: number }>;
+  distance: number;
+  duration: number;
+}
+
 export interface VehicleRouteData {
   vehicle: any;
   locationLogs: any[];
   locations: MapLocation[];
   routeOptions: RouteOptions;
+  routePath?: RoutePath; // New field for Google Directions API route
   color: string;
   isVisible: boolean;
 }
@@ -54,6 +61,7 @@ export interface GoogleMapsProps {
   locations?: MapLocation[];
   showRoute?: boolean;
   routeOptions?: RouteOptions;
+  routePath?: RoutePath;
   onLocationClick?: (location: MapLocation) => void;
   onMapClick?: (event: google.maps.MapMouseEvent) => void;
   vehicleInfo?: {

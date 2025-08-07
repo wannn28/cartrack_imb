@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GoogleMaps from './GoogleMaps';
 import { vehicleAPI, locationAPI } from '../../services/api';
+import { directionsJSService } from '../../services/directions-js';
 import type { Vehicle, LocationLog } from '../../types';
-import type { MapLocation, RouteOptions } from '../../types/google-maps';
+import type { MapLocation, RouteOptions, RoutePath } from '../../types/google-maps';
 import { 
-  MapPin, 
   Route, 
   Navigation, 
   Truck, 
@@ -26,12 +26,15 @@ const TrackingMaps: React.FC = () => {
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
   const [locationLogs, setLocationLogs] = useState<LocationLog[]>([]);
   const [mapLocations, setMapLocations] = useState<MapLocation[]>([]);
-  const [showRoute, setShowRoute] = useState(false);
+  const [showRoute, setShowRoute] = useState(true);
   const [routeOptions, setRouteOptions] = useState<RouteOptions | undefined>();
+  const [routePath, setRoutePath] = useState<RoutePath | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
+
   const [error, setError] = useState('');
   const [mapCenter, setMapCenter] = useState<MapLocation>({ lat: -6.200000, lng: 106.816666 });
+  const [directionsStatus, setDirectionsStatus] = useState<'idle' | 'working' | 'success' | 'failed'>('idle');
   const [dataStats, setDataStats] = useState({
     totalLogs: 0,
     dateRange: { start: '', end: '' },
@@ -51,11 +54,30 @@ const TrackingMaps: React.FC = () => {
   // Fetch vehicles on component mount
   useEffect(() => {
     fetchVehicles();
+    
+    // Test Google Directions API
+    directionsJSService.testDirectionsAPI().then((isWorking: boolean) => {
+      if (!isWorking) {
+        console.warn('⚠️ Google Directions API is not working properly');
+      }
+    });
   }, []);
 
   // Fetch location logs when vehicle is selected
   useEffect(() => {
     if (selectedVehicle) {
+      // Reset all vehicle-related state when selecting a new vehicle
+      setLocationLogs([]);
+      setMapLocations([]);
+      setRouteOptions(undefined);
+      setRoutePath(undefined);
+      setShowRoute(true);
+      setDirectionsStatus('idle');
+      setCurrentCheckpoint(1);
+      setIsPlaying(false);
+      setShowReplay(false);
+      
+      // Fetch location logs for the selected vehicle
       fetchLocationLogs(selectedVehicle);
     }
   }, [selectedVehicle]);
@@ -63,7 +85,12 @@ const TrackingMaps: React.FC = () => {
   // Update map locations when location logs change
   useEffect(() => {
     if (locationLogs.length > 0) {
-      const locations: MapLocation[] = locationLogs.map((log, index) => ({
+      // Sort logs by timestamp ascending (oldest first for route) - same as AllVehiclesMap
+      const sortedLogs = locationLogs.sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      
+      const locations: MapLocation[] = sortedLogs.map((log, index) => ({
         lat: log.latitude,
         lng: log.longitude,
         title: `Lokasi ${index + 1}`,
@@ -73,8 +100,8 @@ const TrackingMaps: React.FC = () => {
       setMapLocations(locations);
       setTotalCheckpoints(locationLogs.length);
       
-      // Set map center to the latest location
-      const latestLog = locationLogs[0];
+      // Set map center to the latest location (last in sorted array)
+      const latestLog = sortedLogs[sortedLogs.length - 1];
       setMapCenter({
         lat: latestLog.latitude,
         lng: latestLog.longitude
@@ -82,6 +109,27 @@ const TrackingMaps: React.FC = () => {
 
       // Calculate statistics
       calculateDataStats(locationLogs);
+      
+      // Handle different cases based on number of locations
+      if (locations.length === 0) {
+        // No locations - clear route data
+        setRouteOptions(undefined);
+        setRoutePath(undefined);
+        setShowRoute(false);
+        setDirectionsStatus('idle');
+        console.log('📍 No locations available');
+      } else if (locations.length === 1) {
+        // Single location - show marker only, no route
+        setRouteOptions(undefined);
+        setRoutePath(undefined);
+        setShowRoute(false);
+        setDirectionsStatus('idle');
+        console.log('📍 Single location - showing marker only');
+      } else {
+        // Multiple locations - process route
+        console.log(`📍 ${locations.length} locations - processing route`);
+        processRouteForVehicle(locations);
+      }
     }
   }, [locationLogs]);
 
@@ -138,6 +186,7 @@ const TrackingMaps: React.FC = () => {
 
   const fetchLocationLogs = async (vehicleId: string) => {
     try {
+      console.log(`🚗 Fetching location logs for vehicle ID: ${vehicleId}`);
       setIsLoading(true);
       setError('');
       
@@ -145,16 +194,20 @@ const TrackingMaps: React.FC = () => {
       const response = await locationAPI.getAllLocationLogs(vehicleId);
       
       if (response.meta.code === 200 && response.data) {
+        console.log(`✅ Successfully fetched ${response.data.length} location logs for vehicle ${vehicleId}`);
+        
         // Sort by timestamp descending (newest first)
         const sortedLogs = response.data.sort((a, b) => 
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
         setLocationLogs(sortedLogs);
       } else {
+        console.warn(`⚠️ No location data found for vehicle ${vehicleId}`);
         setError('No location data found for this vehicle');
         setLocationLogs([]);
       }
     } catch (err: any) {
+      console.error(`❌ Error fetching location logs for vehicle ${vehicleId}:`, err);
       setError(err.response?.data?.message || 'Failed to fetch location logs');
       setLocationLogs([]);
     } finally {
@@ -204,20 +257,68 @@ const TrackingMaps: React.FC = () => {
     });
   };
 
-  const handleShowRoute = () => {
-    if (mapLocations.length >= 2) {
-      const origin = mapLocations[0]; // Latest location
-      const destination = mapLocations[mapLocations.length - 1]; // Oldest location
-      const waypoints = mapLocations.slice(1, -1).slice(0, 8); // Max 8 waypoints for Google Maps
+  const processRouteForVehicle = async (locations: MapLocation[]) => {
+    console.log('🔍 processRouteForVehicle called with locations:', locations.length);
+    
+    if (locations.length >= 2) {
+      setIsLoading(true);
+      setDirectionsStatus('working');
+      
+      try {
+        // Create route options for fallback - same logic as AllVehiclesMap
+        const origin = locations[0]; // First location (oldest)
+        const destination = locations[locations.length - 1]; // Last location (newest)
+        const waypoints = locations.slice(1, -1).slice(0, 8); // Max 8 waypoints for Google Maps
 
-      setRouteOptions({
-        origin,
-        destination,
-        waypoints,
-        travelMode: google.maps?.TravelMode?.DRIVING || 'DRIVING' as any
-      });
-      setShowRoute(true);
+        console.log('📍 Route points:', {
+          origin: `${origin.lat}, ${origin.lng}`,
+          destination: `${destination.lat}, ${destination.lng}`,
+          waypointsCount: waypoints.length
+        });
+
+        setRouteOptions({
+          origin,
+          destination,
+          waypoints,
+          travelMode: google.maps?.TravelMode?.DRIVING || 'DRIVING' as any
+        });
+
+        // Get Google Directions API route
+        console.log(`🚗 Getting directions for vehicle ${selectedVehicleData?.plate_number} with ${locations.length} points`);
+        const directionsResult = await directionsJSService.getRouteForPoints(locations);
+        
+        if (directionsResult) {
+          setRoutePath(directionsResult);
+          setDirectionsStatus('success');
+          console.log(`✅ Successfully got route for ${selectedVehicleData?.plate_number}:`, {
+            distance: directionsResult.distance,
+            duration: directionsResult.duration,
+            pathPoints: directionsResult.path.length
+          });
+        } else {
+          setRoutePath(undefined);
+          setDirectionsStatus('failed');
+          console.warn(`❌ Failed to get route for ${selectedVehicleData?.plate_number}, using direct path`);
+        }
+        
+        setShowRoute(true);
+        console.log('🎯 Route display enabled');
+      } catch (error) {
+        console.error(`💥 Error getting directions for ${selectedVehicleData?.plate_number}:`, error);
+        setRoutePath(undefined);
+        setDirectionsStatus('failed');
+        setShowRoute(true);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      console.log('⚠️ Not enough locations for route:', locations.length);
     }
+  };
+
+  const handleShowRoute = async () => {
+    // This is now just a wrapper for the button click
+    await processRouteForVehicle(mapLocations);
   };
 
   const handleRefresh = () => {
@@ -285,8 +386,13 @@ const TrackingMaps: React.FC = () => {
   const getCurrentPositions = () => {
     if (locationLogs.length === 0) return [];
 
+    // Sort logs by timestamp ascending (oldest first) - same as AllVehiclesMap
+    const sortedLogs = locationLogs.sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
     if (currentCheckpoint === 1) {
-      const firstLog = locationLogs[locationLogs.length - 1]; // Oldest log
+      const firstLog = sortedLogs[0]; // First log (oldest)
       return [{
         vehicle: selectedVehicleData,
         position: { lat: firstLog.latitude, lng: firstLog.longitude },
@@ -304,7 +410,7 @@ const TrackingMaps: React.FC = () => {
     }
     
     // Return positions up to the current checkpoint (from oldest to newest)
-    const relevantLogs = locationLogs.slice(-currentCheckpoint);
+    const relevantLogs = sortedLogs.slice(0, currentCheckpoint);
     
     return relevantLogs.map((log, index) => ({
       vehicle: selectedVehicleData,
@@ -343,6 +449,36 @@ const TrackingMaps: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Real-Time Vehicle Tracking</h1>
         <p className="text-gray-600">Monitor vehicle movements and analyze tracking data</p>
       </div>
+
+      {/* Google Directions API Status */}
+      {directionsStatus !== 'idle' && (
+        <div className={`mb-4 p-3 rounded-lg border ${
+          directionsStatus === 'working' ? 'bg-blue-50 border-blue-200' :
+          directionsStatus === 'success' ? 'bg-green-50 border-green-200' :
+          'bg-red-50 border-red-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            {directionsStatus === 'working' && (
+              <RefreshCw className="w-4 h-4 animate-spin text-blue-500" />
+            )}
+            {directionsStatus === 'success' && (
+              <div className="w-4 h-4 bg-green-500 rounded-full" />
+            )}
+            {directionsStatus === 'failed' && (
+              <div className="w-4 h-4 bg-red-500 rounded-full" />
+            )}
+            <span className={`text-sm font-medium ${
+              directionsStatus === 'working' ? 'text-blue-700' :
+              directionsStatus === 'success' ? 'text-green-700' :
+              'text-red-700'
+            }`}>
+              {directionsStatus === 'working' && 'Processing Google Directions API...'}
+              {directionsStatus === 'success' && '✅ Google Directions API working - routes follow roads'}
+              {directionsStatus === 'failed' && '❌ Google Directions API failed - using direct paths'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Vehicle Selection & Controls */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
@@ -600,33 +736,22 @@ const TrackingMaps: React.FC = () => {
                   </span>
                 )}
               </h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowRoute(false)}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    !showRoute 
-                      ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                      : 'bg-gray-100 text-gray-700 border border-gray-200'
-                  }`}
-                >
-                  <MapPin className="w-4 h-4 inline mr-1" />
-                  Points
-                </button>
-                <button
-                  onClick={handleShowRoute}
-                  disabled={mapLocations.length < 2}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    showRoute 
-                      ? 'bg-green-100 text-green-700 border border-green-200' 
-                      : mapLocations.length >= 2
-                        ? 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
-                        : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
-                  }`}
-                >
-                  <Route className="w-4 h-4 inline mr-1" />
-                  Route
-                </button>
-              </div>
+                             <div className="flex gap-2">
+                 <button
+                   onClick={handleShowRoute}
+                   disabled={mapLocations.length < 2}
+                   className={`px-3 py-2 rounded-md text-sm font-medium ${
+                     showRoute 
+                       ? 'bg-green-100 text-green-700 border border-green-200' 
+                       : mapLocations.length >= 2
+                         ? 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                         : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
+                   }`}
+                 >
+                   <Route className="w-4 h-4 inline mr-1" />
+                   Route
+                 </button>
+               </div>
             </div>
             
             {isLoading ? (
@@ -644,6 +769,7 @@ const TrackingMaps: React.FC = () => {
                 locations={showReplay ? [] : mapLocations}
                 showRoute={showReplay ? false : showRoute}
                 routeOptions={routeOptions}
+                routePath={routePath}
                 replayData={showReplay ? {
                   currentPositions: getCurrentPositions(),
                   isPlaying,
@@ -653,15 +779,15 @@ const TrackingMaps: React.FC = () => {
               />
             )}
             
-            {!isLoading && mapLocations.length === 0 && selectedVehicle && (
-              <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
-                <div className="text-center">
-                  <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                  <p className="text-gray-600 font-medium">No Location Data</p>
-                  <p className="text-sm text-gray-500 mt-1">No tracking data found for this vehicle</p>
-                </div>
-              </div>
-            )}
+                         {!isLoading && mapLocations.length === 0 && selectedVehicle && (
+               <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
+                 <div className="text-center">
+                   <Navigation className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                   <p className="text-gray-600 font-medium">No Location Data</p>
+                   <p className="text-sm text-gray-500 mt-1">No tracking data found for this vehicle</p>
+                 </div>
+               </div>
+             )}
           </div>
         </div>
 
@@ -671,32 +797,35 @@ const TrackingMaps: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Recent Locations ({locationLogs.length})
             </h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {locationLogs.slice(0, 50).map((log, index) => (
-                <div key={log.id} className="p-3 bg-gray-50 rounded-md">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Navigation className="w-4 h-4 text-blue-500 mr-2" />
-                      <span className="font-medium text-sm">#{index + 1}</span>
-                    </div>
-                    {log.speed && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                        {log.speed} km/h
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1">
-                    <p className="text-xs text-gray-600">
-                      <Clock className="w-3 h-3 inline mr-1" />
-                      {new Date(log.timestamp).toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Lat: {log.latitude.toFixed(6)}<br />
-                      Lng: {log.longitude.toFixed(6)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                         <div className="space-y-2 max-h-96 overflow-y-auto">
+               {locationLogs
+                 .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                 .slice(0, 50)
+                 .map((log, index) => (
+                 <div key={log.id} className="p-3 bg-gray-50 rounded-md">
+                   <div className="flex items-center justify-between">
+                     <div className="flex items-center">
+                       <Navigation className="w-4 h-4 text-blue-500 mr-2" />
+                       <span className="font-medium text-sm">#{index + 1}</span>
+                     </div>
+                     {log.speed && (
+                       <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                         {log.speed} km/h
+                       </span>
+                     )}
+                   </div>
+                   <div className="mt-1">
+                     <p className="text-xs text-gray-600">
+                       <Clock className="w-3 h-3 inline mr-1" />
+                       {new Date(log.timestamp).toLocaleString('id-ID')}
+                     </p>
+                     <p className="text-xs text-gray-500 mt-1">
+                       Lat: {log.latitude.toFixed(6)}<br />
+                       Lng: {log.longitude.toFixed(6)}
+                     </p>
+                   </div>
+                 </div>
+               ))}
               {locationLogs.length === 0 && (
                 <p className="text-gray-500 text-sm text-center py-4">
                   No location logs available
