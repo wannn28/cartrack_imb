@@ -40,7 +40,7 @@ echo ========================================
 echo Access URLs
 echo ========================================
 echo Frontend: http://localhost:3004
-echo Backend API: https://trackerapi
+echo Backend API: https://trackerapi.indiramaju.com
 echo Database: localhost:5432
 echo.
 echo To view logs: docker-compose logs -f

@@ -13,7 +13,7 @@ This is the complete API documentation for Cartrack Fleet Management System. The
 
 ### 2. Environment Variables
 Set up the following environment variables:
-- `base_url`: `https://trackerapi`
+- `base_url`: `https://trackerapi.indiramaju.com`
 - `access_token`: Will be auto-set after login
 - `refresh_token`: Will be auto-set after login
 - `user_id`: Will be auto-set after registration/login

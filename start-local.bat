@@ -19,7 +19,7 @@ echo.
 echo ========================================
 echo Services Starting...
 echo ========================================
-echo Backend API: https://trackerapi
+echo Backend API: https://trackerapi.indiramaju.com
 echo Frontend: http://localhost:3004
 echo.
 echo Note: Make sure PostgreSQL is running on localhost:5432

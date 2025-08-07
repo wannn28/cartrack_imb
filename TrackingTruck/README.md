@@ -86,7 +86,7 @@ The frontend is designed to work with the backend API routes:
    ```
 
 2. **Configure API Base URL**
-   The API base URL is already configured to match your backend at `https://trackerapi/api/v1`.
+   The API base URL is already configured to match your backend at `https://trackerapi.indiramaju.com/api/v1`.
    You can modify it in `src/config/environment.ts` or by setting environment variables.
 
 3. **Start Development Server**

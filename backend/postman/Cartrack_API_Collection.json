@@ -38,7 +38,7 @@
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "https://trackerapi",
+			"value": "https://trackerapi.indiramaju.com",
 			"type": "string"
 		},
 		{

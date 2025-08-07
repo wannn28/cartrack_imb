@@ -104,7 +104,7 @@ MIGRATION_PATH=db/migrations
 ## 🌐 **Access URLs**
 
 - **Frontend:** http://localhost:3004
-- **Backend API:** https://trackerapi
+- **Backend API:** https://trackerapi.indiramaju.com
 - **Database:** localhost:5432
 - **Redis:** localhost:6379 (development)
 
@@ -140,6 +140,6 @@ volumes/
 
 3. **Access Application:**
    - Frontend: http://localhost:3004
-   - Backend: https://trackerapi
+   - Backend: https://trackerapi.indiramaju.com
 
 **Aplikasi Cartrack IMB sekarang mengikuti pola yang sama dengan Smart Nota Online! 🚀**

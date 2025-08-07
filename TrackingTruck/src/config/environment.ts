@@ -1,6 +1,6 @@
 // Environment configuration
 export const env = {
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://trackerapi/api/v1',
+  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://trackerapi.indiramaju.com/api/v1',
   APP_NAME: import.meta.env.VITE_APP_NAME || 'CarTrack',
   APP_VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
   DEFAULT_FUEL_CAPACITY: parseInt(import.meta.env.VITE_DEFAULT_FUEL_CAPACITY || '50'),

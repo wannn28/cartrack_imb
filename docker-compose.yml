@@ -34,7 +34,7 @@ services:
       - "3004:80"
     environment:
       - NODE_ENV=production
-      - REACT_APP_API_URL=https://trackerapi
+      - REACT_APP_API_URL=https://trackerapi.indiramaju.com
     volumes:
       - ./TrackingTruck/logs/nginx:/var/log/nginx
     networks:

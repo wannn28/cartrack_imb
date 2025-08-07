@@ -36,7 +36,7 @@ cartrack_imb/
 
 2. **Access the application:**
    - Frontend: http://localhost:3004
-   - Backend API: https://trackerapi
+   - Backend API: https://trackerapi.indiramaju.com
    - Database: localhost:5432
 
 3. **Stop all services:**
@@ -53,7 +53,7 @@ cartrack_imb/
 
 2. **Access the application:**
    - Frontend: http://localhost:3004 (with hot reload)
-   - Backend API: https://trackerapi
+   - Backend API: https://trackerapi.indiramaju.com
    - Database: localhost:5432
 
 3. **Stop development services:**
@@ -133,7 +133,7 @@ MIGRATION_PATH=db/migrations
 
 ### Frontend Environment Variables
 ```bash
-REACT_APP_API_URL=https://trackerapi
+REACT_APP_API_URL=https://trackerapi.indiramaju.com
 ```
 
 ## Database Migrations
