@@ -61,6 +61,27 @@ cartrack_imb/
    docker-compose -f docker-compose.dev.yml down
    ```
 
+## Running Without Docker
+
+If Docker Desktop is not running or you prefer to run locally:
+
+### Backend (Go)
+```bash
+cd backend
+go mod download
+go run ./cmd/app
+```
+
+### Frontend (React)
+```bash
+cd TrackingTruck
+npm install
+npm run dev
+```
+
+### Database (PostgreSQL)
+Install PostgreSQL locally or use a cloud database service.
+
 ## Services
 
 ### 1. PostgreSQL Database
@@ -186,21 +207,31 @@ docker-compose up -d postgres
 
 ### Common Issues
 
-1. **Port conflicts:**
+1. **Docker Desktop not running:**
+   - Start Docker Desktop from Start Menu
+   - Wait for "Docker Desktop is running" status
+   - Test with: `docker ps`
+
+2. **Port conflicts:**
    - Ensure ports 3004, 8003, and 5432 are available
    - Change ports in docker-compose.yml if needed
 
-2. **Database connection issues:**
+3. **Database connection issues:**
    - Wait for PostgreSQL to be healthy before starting backend
    - Check database credentials in environment variables
 
-3. **Frontend not loading:**
+4. **Frontend not loading:**
    - Check if backend API is accessible
    - Verify REACT_APP_API_URL environment variable
 
-4. **Build failures:**
+5. **Build failures:**
    - Clear Docker cache: `docker system prune -a`
    - Rebuild without cache: `docker-compose build --no-cache`
+
+6. **TypeScript errors:**
+   - Fixed unused variable warnings
+   - Updated NodeJS.Timeout to ReturnType<typeof setInterval>
+   - Removed unused imports
 
 ### Logs and Debugging
 
@@ -254,3 +285,16 @@ For production deployment:
    ```bash
    docker-compose -f docker-compose.dev.yml down
    ```
+
+## Recent Fixes
+
+### TypeScript Errors Fixed:
+- Removed unused imports (`MapPin`, `RouteOptions`)
+- Fixed unused variable warnings in forEach loops
+- Updated `NodeJS.Timeout` to `ReturnType<typeof setInterval>`
+- Commented out unused `formatTime` function
+
+### Docker Issues Fixed:
+- Updated frontend Dockerfile to install all dependencies (including dev dependencies)
+- Fixed port configurations (8003 for backend, 3004 for frontend)
+- Added proper error handling for Docker Desktop not running
