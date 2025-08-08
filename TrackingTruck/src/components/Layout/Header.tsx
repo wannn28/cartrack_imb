@@ -1,20 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   LogOut, 
   User, 
   Settings,
-  Truck
+  Truck,
+  Menu,
+  X
 } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   return (
@@ -29,7 +36,7 @@ const Header: React.FC = () => {
             </Link>
           </div>
 
-          {/* Navigation */}
+          {/* Desktop Navigation */}
           {isAuthenticated && (
             <nav className="hidden md:flex space-x-8">
               <Link 
@@ -95,25 +102,49 @@ const Header: React.FC = () => {
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
               <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
+                {/* Desktop User Info */}
+                <div className="hidden md:flex items-center space-x-2">
                   <User className="h-5 w-5 text-gray-500" />
                   <span className="text-sm text-gray-700">{user?.name}</span>
                   <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                     {user?.role}
                   </span>
                 </div>
-                <Link 
-                  to="/profile" 
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <Settings className="h-5 w-5" />
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <LogOut className="h-5 w-5" />
-                </button>
+                
+                {/* Mobile Profile Icon */}
+                <div className="md:hidden">
+                  <User className="h-6 w-6 text-gray-600" />
+                </div>
+
+                {/* Desktop Actions */}
+                <div className="hidden md:flex items-center space-x-2">
+                  <Link 
+                    to="/profile" 
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <Settings className="h-5 w-5" />
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Mobile Menu Button */}
+                <div className="md:hidden">
+                  <button
+                    onClick={toggleMobileMenu}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    {isMobileMenuOpen ? (
+                      <X className="h-6 w-6" />
+                    ) : (
+                      <Menu className="h-6 w-6" />
+                    )}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex space-x-2">
@@ -133,6 +164,105 @@ const Header: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Mobile Navigation Dropdown */}
+        {isAuthenticated && isMobileMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 bg-white border-t">
+              <Link 
+                to="/dashboard" 
+                className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Dashboard
+              </Link>
+              <Link 
+                to="/vehicles" 
+                className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Vehicles
+              </Link>
+              <Link 
+                to="/tracking" 
+                className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Tracking
+              </Link>
+              <Link 
+                to="/fuel" 
+                className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Fuel
+              </Link>
+              <Link 
+                to="/maps" 
+                className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Maps
+              </Link>
+              <Link 
+                to="/tracking-maps" 
+                className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Live Tracking
+              </Link>
+              <Link 
+                to="/all-vehicles" 
+                className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                All Vehicles
+              </Link>
+              <Link 
+                to="/api-keys" 
+                className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                API Keys
+              </Link>
+              {user?.role === 'admin' && (
+                <Link 
+                  to="/admin" 
+                  className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Admin
+                </Link>
+              )}
+              
+              {/* Mobile User Actions */}
+              <div className="border-t pt-2 mt-2">
+                <Link 
+                  to="/profile" 
+                  className="block px-3 py-2 text-gray-700 hover:text-blue-600 text-sm font-medium"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </div>
+                </Link>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 text-gray-700 hover:text-red-600 text-sm font-medium"
+                >
+                  <div className="flex items-center space-x-2">
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );
