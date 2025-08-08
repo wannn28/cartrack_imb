@@ -428,6 +428,50 @@ const TrackingMaps: React.FC = () => {
     }));
   };
 
+  // Get route data for replay (using Google Directions API)
+  const getReplayRouteData = () => {
+    if (locationLogs.length === 0) return null;
+
+    // Sort logs by timestamp ascending (oldest first)
+    const sortedLogs = locationLogs.sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    // Get positions up to current checkpoint
+    const relevantLogs = sortedLogs.slice(0, currentCheckpoint);
+    
+    if (relevantLogs.length < 2) return null;
+
+    // Convert to MapLocation format
+    const locations: MapLocation[] = relevantLogs.map((log, index) => ({
+      lat: log.latitude,
+      lng: log.longitude,
+      title: `Checkpoint ${index + 1}`,
+      address: `${new Date(log.timestamp).toLocaleString('id-ID')} - ${log.speed || 0} km/h`
+    }));
+
+    // Create route options for Google Directions API
+    const origin = locations[0];
+    const destination = locations[locations.length - 1];
+    const waypoints = locations.slice(1, -1).slice(0, 8); // Max 8 waypoints
+
+    return {
+      routeOptions: {
+        origin,
+        destination,
+        waypoints,
+        travelMode: google.maps?.TravelMode?.DRIVING || 'DRIVING' as any
+      },
+      locations
+    };
+  };
+
+  // Handle checkpoint icon click
+  const handleCheckpointClick = (checkpointNumber: number) => {
+    setCurrentCheckpoint(checkpointNumber);
+    setIsPlaying(false);
+  };
+
   const selectedVehicleData = vehicles.find(v => v.id === selectedVehicle);
 
   if (isLoadingVehicles) {
@@ -646,11 +690,14 @@ const TrackingMaps: React.FC = () => {
                 {Array.from({ length: totalCheckpoints }, (_, i) => (
                   <div key={i} className="flex flex-col items-center">
                     <div 
-                      className={`w-3 h-3 rounded-full border-2 ${
+                      className={`w-3 h-3 rounded-full border-2 transition-colors duration-200 ${
                         i + 1 <= currentCheckpoint 
-                          ? 'bg-blue-500 border-blue-500' 
-                          : 'bg-gray-200 border-gray-300'
+                          ? 'bg-blue-500 border-blue-500 hover:bg-blue-600' 
+                          : 'bg-gray-200 border-gray-300 hover:bg-gray-300'
                       }`}
+                      onClick={() => handleCheckpointClick(i + 1)}
+                      style={{ cursor: 'pointer' }}
+                      title={`Click to go to Checkpoint ${i + 1}`}
                     />
                     <span className="text-xs text-gray-500 mt-1">{i + 1}</span>
                   </div>
@@ -766,9 +813,9 @@ const TrackingMaps: React.FC = () => {
                 center={mapCenter}
                 zoom={13}
                 height="500px"
-                locations={showReplay ? [] : mapLocations}
-                showRoute={showReplay ? false : showRoute}
-                routeOptions={routeOptions}
+                locations={showReplay ? (getReplayRouteData()?.locations || []) : mapLocations}
+                showRoute={showReplay ? true : showRoute}
+                routeOptions={showReplay ? getReplayRouteData()?.routeOptions : routeOptions}
                 routePath={routePath}
                 replayData={showReplay ? {
                   currentPositions: getCurrentPositions(),

@@ -460,7 +460,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
       polylineRef.current = null;
     }
 
-    // Create historical route polylines for each vehicle
+    // Create historical route using Google Directions API if routeOptions is available
     const bounds = new google.maps.LatLngBounds();
     
     // Group positions by vehicle to create route polylines
@@ -476,8 +476,8 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
       vehicleGroups.get(position.vehicle.id).positions.push(position);
     });
 
-    // Create polylines for each vehicle's historical route
-    vehicleGroups.forEach((group) => {
+    // Create routes for each vehicle using Google Directions API
+    vehicleGroups.forEach(async (group) => {
       const { color, positions } = group;
       
       if (positions.length > 1) {
@@ -486,19 +486,61 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
         
-        // Create polyline for this vehicle's route
-        const polyline = new google.maps.Polyline({
-          path: sortedPositions.map((pos: any) => pos.position),
-          geodesic: true,
-          strokeColor: color,
-          strokeOpacity: 0.7,
-          strokeWeight: 4,
-        });
-        
-        polyline.setMap(map);
-        
-        // Extend bounds to include this route
-        sortedPositions.forEach((pos: any) => bounds.extend(pos.position));
+        // Try to use Google Directions API for route
+        if (routeOptions && routeOptions.origin && routeOptions.destination) {
+          try {
+            const directionsService = new google.maps.DirectionsService();
+            const directionsRenderer = new google.maps.DirectionsRenderer({
+              suppressMarkers: true,
+              polylineOptions: {
+                strokeColor: color,
+                strokeOpacity: 0.7,
+                strokeWeight: 4,
+              }
+            });
+            
+            directionsRenderer.setMap(map);
+            
+            const result = await directionsService.route({
+              origin: routeOptions.origin,
+              destination: routeOptions.destination,
+              waypoints: routeOptions.waypoints?.map(wp => ({ location: wp })),
+              travelMode: routeOptions.travelMode || google.maps.TravelMode.DRIVING
+            });
+            directionsRenderer.setDirections(result);
+            
+            // Extend bounds to include this route
+            if (result.routes && result.routes.length > 0) {
+              const path = result.routes[0].overview_path;
+              path.forEach(point => bounds.extend(point));
+            }
+          } catch (error) {
+            console.warn('Failed to get directions for replay, using direct path:', error);
+            // Fallback to direct polyline
+            const polyline = new google.maps.Polyline({
+              path: sortedPositions.map((pos: any) => pos.position),
+              geodesic: true,
+              strokeColor: color,
+              strokeOpacity: 0.7,
+              strokeWeight: 4,
+            });
+            
+            polyline.setMap(map);
+            sortedPositions.forEach((pos: any) => bounds.extend(pos.position));
+          }
+        } else {
+          // Fallback to direct polyline if no routeOptions
+          const polyline = new google.maps.Polyline({
+            path: sortedPositions.map((pos: any) => pos.position),
+            geodesic: true,
+            strokeColor: color,
+            strokeOpacity: 0.7,
+            strokeWeight: 4,
+          });
+          
+          polyline.setMap(map);
+          sortedPositions.forEach((pos: any) => bounds.extend(pos.position));
+        }
       }
     });
 
@@ -633,7 +675,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
     }
     map.fitBounds(bounds);
 
-  }, [map, isLoaded, replayData]);
+  }, [map, isLoaded, replayData, routeOptions]);
 
   // Clear route when showRoute is false
   useEffect(() => {
