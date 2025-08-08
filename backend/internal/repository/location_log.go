@@ -16,6 +16,7 @@ type LocationLogRepository interface {
 	GetByVehicleIDAndDateRange(vehicleID uint, startDate, endDate time.Time, limit, offset int) ([]entity.LocationLog, error)
 	GetByVehicleIDAndDateRangeWithPagination(vehicleID uint, startDate, endDate time.Time, limit, offset int) ([]entity.LocationLog, int64, error)
 	GetByUserIDWithPagination(userID uint, limit, offset int) ([]entity.LocationLog, int64, error)
+	GetByUserIDWithDateRange(userID uint, startDate, endDate time.Time, limit, offset int) ([]entity.LocationLog, int64, error)
 	GetLatestByVehicleID(vehicleID uint) (*entity.LocationLog, error)
 	Update(locationLog *entity.LocationLog) error
 	Delete(id uint) error
@@ -132,6 +133,31 @@ func (r *locationLogRepository) GetByUserIDWithPagination(userID uint, limit, of
 	// Get paginated data by joining with vehicles table
 	err = r.db.Joins("JOIN vehicles ON location_logs.vehicle_id = vehicles.id").
 		Where("vehicles.user_id = ?", userID).
+		Preload("Vehicle").
+		Order("location_logs.timestamp DESC").
+		Limit(limit).Offset(offset).
+		Find(&locationLogs).Error
+
+	return locationLogs, total, err
+}
+
+// GetByUserIDWithDateRange gets location logs by user ID and date range with pagination info
+func (r *locationLogRepository) GetByUserIDWithDateRange(userID uint, startDate, endDate time.Time, limit, offset int) ([]entity.LocationLog, int64, error) {
+	var locationLogs []entity.LocationLog
+	var total int64
+
+	// Get total count by joining with vehicles table and filtering by date range
+	err := r.db.Model(&entity.LocationLog{}).
+		Joins("JOIN vehicles ON location_logs.vehicle_id = vehicles.id").
+		Where("vehicles.user_id = ? AND location_logs.timestamp BETWEEN ? AND ?", userID, startDate, endDate).
+		Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated data by joining with vehicles table and filtering by date range
+	err = r.db.Joins("JOIN vehicles ON location_logs.vehicle_id = vehicles.id").
+		Where("vehicles.user_id = ? AND location_logs.timestamp BETWEEN ? AND ?", userID, startDate, endDate).
 		Preload("Vehicle").
 		Order("location_logs.timestamp DESC").
 		Limit(limit).Offset(offset).

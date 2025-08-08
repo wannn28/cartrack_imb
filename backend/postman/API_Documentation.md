@@ -194,7 +194,8 @@ Authorization: ApiKey {{api_key}}
 - **GET** `/api/v1/location-logs?limit=50&offset=0`
 - **Auth**: Required
 - **Description**: Returns all location logs for the authenticated user across all their vehicles
-- **Query Params**: limit, offset
+- **Query Params**: limit, offset, start_date, end_date
+- **Date Range**: Optional filtering by date range (format: YYYY-MM-DD)
 - **Response**: Includes vehicle information including plate number
 - **Sample Response**:
 ```json

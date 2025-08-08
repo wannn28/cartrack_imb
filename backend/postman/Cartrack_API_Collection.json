@@ -543,6 +543,48 @@
 					"response": []
 				},
 				{
+					"name": "Get All My Location Logs with Date Range",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/location-logs?start_date=2025-01-01&end_date=2025-01-31&limit=100&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"location-logs"
+							],
+							"query": [
+								{
+									"key": "start_date",
+									"value": "2025-01-01"
+								},
+								{
+									"key": "end_date",
+									"value": "2025-01-31"
+								},
+								{
+									"key": "limit",
+									"value": "100"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Get Vehicle Location History (Specific Vehicle)",
 					"request": {
 						"method": "GET",

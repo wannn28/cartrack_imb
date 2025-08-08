@@ -18,8 +18,9 @@ type LocationLogService interface {
 	GetByVehicleIDWithPagination(userID, vehicleID uint, limit, offset int) ([]dto.LocationLogResponse, int64, error)
 	GetByDateRange(userID, vehicleID uint, startDate, endDate time.Time, limit, offset int) ([]dto.LocationLogResponse, error)
 	GetByDateRangeWithPagination(userID, vehicleID uint, startDate, endDate time.Time, limit, offset int) ([]dto.LocationLogResponse, int64, error)
-	GetLatestByVehicleID(userID, vehicleID uint) (*dto.LocationLogResponse, error)
 	GetByUserID(userID uint, limit, offset int) ([]dto.LocationLogResponse, int64, error)
+	GetByUserIDWithDateRange(userID uint, startDate, endDate time.Time, limit, offset int) ([]dto.LocationLogResponse, int64, error)
+	GetLatestByVehicleID(userID, vehicleID uint) (*dto.LocationLogResponse, error)
 	GetAll(limit, offset int) ([]dto.LocationLogResponse, error)                      // Admin only
 	GetAllWithPagination(limit, offset int) ([]dto.LocationLogResponse, int64, error) // Admin only
 }
@@ -213,6 +214,21 @@ func (s *locationLogService) GetByUserID(userID uint, limit, offset int) ([]dto.
 	logs, total, err := s.locationLogRepo.GetByUserIDWithPagination(userID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get location logs for user: %w", err)
+	}
+
+	responses := make([]dto.LocationLogResponse, len(logs))
+	for i, log := range logs {
+		responses[i] = *s.entityToResponse(&log)
+	}
+
+	return responses, total, nil
+}
+
+// GetByUserIDWithDateRange gets location logs for a specific user by date range
+func (s *locationLogService) GetByUserIDWithDateRange(userID uint, startDate, endDate time.Time, limit, offset int) ([]dto.LocationLogResponse, int64, error) {
+	logs, total, err := s.locationLogRepo.GetByUserIDWithDateRange(userID, startDate, endDate, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get location logs for user by date range: %w", err)
 	}
 
 	responses := make([]dto.LocationLogResponse, len(logs))

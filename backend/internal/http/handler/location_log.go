@@ -134,9 +134,37 @@ func (h *locationLogHandler) GetMyLocationLogs(c echo.Context) error {
 		offset = 0
 	}
 
-	logs, total, err := h.locationLogService.GetByUserID(userID, limit, offset)
-	if err != nil {
-		return response.InternalServerError(c, "Failed to get location logs", err)
+	// Check for date range
+	startDateStr := c.QueryParam("start_date")
+	endDateStr := c.QueryParam("end_date")
+
+	var logs []dto.LocationLogResponse
+	var total int64
+	var err error
+
+	if startDateStr != "" && endDateStr != "" {
+		startDate, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			return response.BadRequest(c, "Invalid start_date format. Use YYYY-MM-DD", nil)
+		}
+
+		endDate, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			return response.BadRequest(c, "Invalid end_date format. Use YYYY-MM-DD", nil)
+		}
+
+		// Set end date to end of day
+		endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+
+		logs, total, err = h.locationLogService.GetByUserIDWithDateRange(userID, startDate, endDate, limit, offset)
+		if err != nil {
+			return response.InternalServerError(c, "Failed to get location logs", err)
+		}
+	} else {
+		logs, total, err = h.locationLogService.GetByUserID(userID, limit, offset)
+		if err != nil {
+			return response.InternalServerError(c, "Failed to get location logs", err)
+		}
 	}
 
 	// Calculate pagination info
