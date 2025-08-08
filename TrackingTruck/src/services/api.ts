@@ -137,20 +137,24 @@ export const locationAPI = {
     }).then(res => res.data),
     
   // Enhanced method for massive data retrieval
-    getAllLocationLogs: (vehicleId: string): Promise<BackendApiResponse<LocationLog[]>> =>
+  getAllLocationLogs: (vehicleId: string, dateParams?: { start_date?: string; end_date?: string; limit?: number; offset?: number }): Promise<BackendApiResponse<LocationLog[]>> =>
     api.get('/location-logs/vehicle', {
       params: {
         vehicle_id: vehicleId,
-        limit: 10000000000,
-        offset: 0
+        start_date: dateParams?.start_date,
+        end_date: dateParams?.end_date,
+        limit: dateParams?.limit || 10000000000,
+        offset: dateParams?.offset || 0
       }
     }).then(res => res.data),
 
-  getAllLocationLogsForAllVehicles: (): Promise<BackendApiResponse<LocationLog[]>> =>
+  getAllLocationLogsForAllVehicles: (dateParams?: { start_date?: string; end_date?: string; limit?: number; offset?: number }): Promise<BackendApiResponse<LocationLog[]>> =>
     api.get('/location-logs', {
       params: {
-        limit: 1000000,
-        offset: 0
+        start_date: dateParams?.start_date,
+        end_date: dateParams?.end_date,
+        limit: dateParams?.limit || 1000000,
+        offset: dateParams?.offset || 0
       }
     }).then(res => res.data),
 };

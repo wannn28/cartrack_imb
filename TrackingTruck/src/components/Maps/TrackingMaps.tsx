@@ -42,6 +42,11 @@ const TrackingMaps: React.FC = () => {
     totalDistance: 0
   });
 
+  // Date range functionality
+  const [selectedDateRange, setSelectedDateRange] = useState<'today' | 'yesterday' | 'day_before_yesterday'>('today');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+
   // Replay controls
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentCheckpoint, setCurrentCheckpoint] = useState(1);
@@ -50,6 +55,53 @@ const TrackingMaps: React.FC = () => {
   const [showReplay, setShowReplay] = useState(false);
   
   const intervalRef = useRef<number | null>(null);
+
+  // Get date range based on selection
+  const getDateRange = () => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dayBeforeYesterday = new Date(today);
+    dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+
+    const formatDate = (date: Date) => {
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    };
+
+    switch (selectedDateRange) {
+      case 'today':
+        return {
+          start_date: formatDate(today),
+          end_date: formatDate(today)
+        };
+      case 'yesterday':
+        return {
+          start_date: formatDate(yesterday),
+          end_date: formatDate(yesterday)
+        };
+      case 'day_before_yesterday':
+        return {
+          start_date: formatDate(dayBeforeYesterday),
+          end_date: formatDate(dayBeforeYesterday)
+        };
+      default:
+        return {
+          start_date: formatDate(today),
+          end_date: formatDate(today)
+        };
+    }
+  };
+
+  // Get custom date range
+  const getCustomDateRange = () => {
+    if (customStartDate && customEndDate) {
+      return {
+        start_date: customStartDate,
+        end_date: customEndDate
+      };
+    }
+    return null;
+  };
 
   // Fetch vehicles on component mount
   useEffect(() => {
@@ -63,7 +115,7 @@ const TrackingMaps: React.FC = () => {
     });
   }, []);
 
-  // Fetch location logs when vehicle is selected
+  // Fetch location logs when vehicle is selected or date range changes
   useEffect(() => {
     if (selectedVehicle) {
       // Reset all vehicle-related state when selecting a new vehicle
@@ -80,7 +132,7 @@ const TrackingMaps: React.FC = () => {
       // Fetch location logs for the selected vehicle
       fetchLocationLogs(selectedVehicle);
     }
-  }, [selectedVehicle]);
+  }, [selectedVehicle, selectedDateRange, customStartDate, customEndDate]);
 
   // Update map locations when location logs change
   useEffect(() => {
@@ -190,8 +242,19 @@ const TrackingMaps: React.FC = () => {
       setIsLoading(true);
       setError('');
       
-      // Use the enhanced API method with high limit
-      const response = await locationAPI.getAllLocationLogs(vehicleId);
+      // Get date range parameters
+      const customRange = getCustomDateRange();
+      const dateRange = customRange || getDateRange();
+      
+      console.log(`📅 Fetching data for date range: ${dateRange.start_date} to ${dateRange.end_date}`);
+      
+      // Use the enhanced API method with date range parameters
+      const response = await locationAPI.getAllLocationLogs(vehicleId, {
+        start_date: dateRange.start_date,
+        end_date: dateRange.end_date,
+        limit: 100000000,
+        offset: 0
+      });
       
       if (response.meta.code === 200 && response.data) {
         console.log(`✅ Successfully fetched ${response.data.length} location logs for vehicle ${vehicleId}`);
@@ -526,7 +589,7 @@ const TrackingMaps: React.FC = () => {
 
       {/* Vehicle Selection & Controls */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Truck className="w-5 h-5 text-blue-500" />
@@ -578,6 +641,80 @@ const TrackingMaps: React.FC = () => {
               <Download className="w-4 h-4" />
               Export CSV
             </button>
+          </div>
+        </div>
+
+        {/* Date Range Selection */}
+        <div className="border-t pt-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-500" />
+              <label className="text-sm font-medium text-gray-700">Date Range:</label>
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedDateRange('today')}
+                className={`px-3 py-1 rounded-md text-sm font-medium ${
+                  selectedDateRange === 'today'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setSelectedDateRange('yesterday')}
+                className={`px-3 py-1 rounded-md text-sm font-medium ${
+                  selectedDateRange === 'yesterday'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                Yesterday
+              </button>
+              <button
+                onClick={() => setSelectedDateRange('day_before_yesterday')}
+                className={`px-3 py-1 rounded-md text-sm font-medium ${
+                  selectedDateRange === 'day_before_yesterday'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                Day Before Yesterday
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">or Custom:</span>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Start Date"
+              />
+              <span className="text-sm text-gray-500">to</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="End Date"
+              />
+            </div>
+          </div>
+          
+          {/* Current Date Range Display */}
+          <div className="mt-2 text-sm text-gray-600">
+            <span className="font-medium">Current Range:</span>{' '}
+            {customStartDate && customEndDate ? (
+              <span>{customStartDate} to {customEndDate}</span>
+            ) : (
+              <span>
+                {getDateRange().start_date} to {getDateRange().end_date}
+              </span>
+            )}
           </div>
         </div>
       </div>

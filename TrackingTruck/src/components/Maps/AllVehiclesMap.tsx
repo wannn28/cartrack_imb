@@ -5,7 +5,7 @@ import { vehicleAPI, locationAPI } from '../../services/api';
 import { directionsJSService } from '../../services/directions-js';
 import type { Vehicle, LocationLog } from '../../types';
 import type { MapLocation, RouteOptions, RoutePath } from '../../types/google-maps';
-import { Route, Navigation, Truck, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Route, Navigation, Truck, RefreshCw, Eye, EyeOff, Calendar } from 'lucide-react';
 
 // Color palette for different vehicles
 const VEHICLE_COLORS = [
@@ -42,6 +42,58 @@ const AllVehiclesMap: React.FC = () => {
   const [error, setError] = useState('');
   const [directionsStatus, setDirectionsStatus] = useState<'idle' | 'working' | 'success' | 'failed'>('idle');
 
+  // Date range functionality
+  const [selectedDateRange, setSelectedDateRange] = useState<'today' | 'yesterday' | 'day_before_yesterday'>('today');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+
+  // Get date range based on selection
+  const getDateRange = () => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dayBeforeYesterday = new Date(today);
+    dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+
+    const formatDate = (date: Date) => {
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    };
+
+    switch (selectedDateRange) {
+      case 'today':
+        return {
+          start_date: formatDate(today),
+          end_date: formatDate(today)
+        };
+      case 'yesterday':
+        return {
+          start_date: formatDate(yesterday),
+          end_date: formatDate(yesterday)
+        };
+      case 'day_before_yesterday':
+        return {
+          start_date: formatDate(dayBeforeYesterday),
+          end_date: formatDate(dayBeforeYesterday)
+        };
+      default:
+        return {
+          start_date: formatDate(today),
+          end_date: formatDate(today)
+        };
+    }
+  };
+
+  // Get custom date range
+  const getCustomDateRange = () => {
+    if (customStartDate && customEndDate) {
+      return {
+        start_date: customStartDate,
+        end_date: customEndDate
+      };
+    }
+    return null;
+  };
+
   // Fetch vehicles on component mount
   useEffect(() => {
     fetchVehicles();
@@ -54,12 +106,12 @@ const AllVehiclesMap: React.FC = () => {
     });
   }, []);
 
-  // Fetch all location logs when vehicles are loaded
+  // Fetch all location logs when vehicles are loaded or date range changes
   useEffect(() => {
     if (vehicles.length > 0) {
       fetchAllLocationLogs();
     }
-  }, [vehicles]);
+  }, [vehicles, selectedDateRange, customStartDate, customEndDate]);
 
   // Process location logs into vehicle routes
   useEffect(() => {
@@ -204,7 +256,18 @@ const AllVehiclesMap: React.FC = () => {
       setIsLoading(true);
       setError('');
       
-      const response = await locationAPI.getAllLocationLogsForAllVehicles();
+      // Get date range parameters
+      const customRange = getCustomDateRange();
+      const dateRange = customRange || getDateRange();
+      
+      console.log(`📅 Fetching data for date range: ${dateRange.start_date} to ${dateRange.end_date}`);
+      
+      const response = await locationAPI.getAllLocationLogsForAllVehicles({
+        start_date: dateRange.start_date,
+        end_date: dateRange.end_date,
+        limit: 100000000,
+        offset: 0
+      });
       
       if (response.meta.code === 200 && response.data) {
         console.log('API Response:', response.data);
@@ -327,6 +390,80 @@ const AllVehiclesMap: React.FC = () => {
               <RefreshCw className="w-4 h-4" />
               Clear Cache
             </button>
+          </div>
+        </div>
+
+        {/* Date Range Selection */}
+        <div className="border-t pt-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-500" />
+              <label className="text-sm font-medium text-gray-700">Date Range:</label>
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedDateRange('today')}
+                className={`px-3 py-1 rounded-md text-sm font-medium ${
+                  selectedDateRange === 'today'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setSelectedDateRange('yesterday')}
+                className={`px-3 py-1 rounded-md text-sm font-medium ${
+                  selectedDateRange === 'yesterday'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                Yesterday
+              </button>
+              <button
+                onClick={() => setSelectedDateRange('day_before_yesterday')}
+                className={`px-3 py-1 rounded-md text-sm font-medium ${
+                  selectedDateRange === 'day_before_yesterday'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                Day Before Yesterday
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">or Custom:</span>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Start Date"
+              />
+              <span className="text-sm text-gray-500">to</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="End Date"
+              />
+            </div>
+          </div>
+          
+          {/* Current Date Range Display */}
+          <div className="mt-2 text-sm text-gray-600">
+            <span className="font-medium">Current Range:</span>{' '}
+            {customStartDate && customEndDate ? (
+              <span>{customStartDate} to {customEndDate}</span>
+            ) : (
+              <span>
+                {getDateRange().start_date} to {getDateRange().end_date}
+              </span>
+            )}
           </div>
         </div>
 
