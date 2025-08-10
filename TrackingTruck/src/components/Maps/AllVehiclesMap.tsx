@@ -265,7 +265,7 @@ const AllVehiclesMap: React.FC = () => {
       const response = await locationAPI.getAllLocationLogsForAllVehicles({
         start_date: dateRange.start_date,
         end_date: dateRange.end_date,
-        limit: 100000000,
+        limit: 10000000000000,
         offset: 0
       });
       

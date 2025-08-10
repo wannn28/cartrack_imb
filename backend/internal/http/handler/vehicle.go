@@ -140,8 +140,8 @@ func (h *vehicleHandler) GetAll(c echo.Context) error {
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 	offset, _ := strconv.Atoi(c.QueryParam("offset"))
 
-	if limit <= 0 || limit > 100 {
-		limit = 50
+	if limit <= 0 || limit > 1000000000000000000 {
+		limit = 1000000000000000000
 	}
 	if offset < 0 {
 		offset = 0

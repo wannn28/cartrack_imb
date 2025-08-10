@@ -73,8 +73,8 @@ func (h *locationLogHandler) GetByVehicleID(c echo.Context) error {
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 	offset, _ := strconv.Atoi(c.QueryParam("offset"))
 
-	if limit <= 0 || limit > 1000 {
-		limit = 50
+	if limit <= 0 || limit > 1000000000000000000 {
+		limit = 1000000000000000000
 	}
 	if offset < 0 {
 		offset = 0
@@ -127,8 +127,8 @@ func (h *locationLogHandler) GetMyLocationLogs(c echo.Context) error {
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 	offset, _ := strconv.Atoi(c.QueryParam("offset"))
 
-	if limit <= 0 || limit > 1000 {
-		limit = 50
+	if limit <= 0 || limit > 1000000000000000000 {
+		limit = 1000000000000000000
 	}
 	if offset < 0 {
 		offset = 0

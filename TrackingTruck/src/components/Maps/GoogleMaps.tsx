@@ -416,7 +416,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
         }
         
         // Ensure we have valid plate number data
-        const plateNumber = vehicleInfo?.plateNumber || 'BP 9921 DE'; // Fallback to known plate
+        const plateNumber = vehicleInfo?.plateNumber || 'Vehicle'; // Use generic fallback instead of hardcoded plate
         const speed = currentSpeed || 0;
         
         console.log('=== CREATING VEHICLE MARKER ===');
@@ -447,7 +447,7 @@ const GoogleMaps: React.FC<GoogleMapsProps> = ({
       map.fitBounds(bounds);
     }
     
-  }, [map, isLoaded, showRoute, routeOptions, allVehicleRoutes]);
+  }, [map, isLoaded, showRoute, routeOptions, allVehicleRoutes, vehicleInfo]);
 
   // Handle replay markers
   useEffect(() => {

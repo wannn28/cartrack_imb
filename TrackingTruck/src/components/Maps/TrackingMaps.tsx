@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import GoogleMaps from './GoogleMaps';
 import { vehicleAPI, locationAPI } from '../../services/api';
 import { directionsJSService } from '../../services/directions-js';
@@ -102,6 +102,41 @@ const TrackingMaps: React.FC = () => {
     }
     return null;
   };
+
+  const selectedVehicleData = useMemo(() => {
+    console.log('🔍 Calculating selectedVehicleData:', { 
+      vehicles, 
+      selectedVehicle, 
+      selectedVehicleType: typeof selectedVehicle,
+      vehiclesIds: vehicles.map(v => ({ id: v.id, idType: typeof v.id }))
+    });
+    
+    // Try different comparison methods
+    let found = vehicles.find(v => v.id === selectedVehicle);
+    console.log('🔍 Method 1 (strict):', found);
+    
+    if (!found) {
+      // Try string comparison
+      found = vehicles.find(v => String(v.id) === String(selectedVehicle));
+      console.log('🔍 Method 2 (string):', found);
+    }
+    
+    if (!found) {
+      // Try number comparison
+      found = vehicles.find(v => Number(v.id) === Number(selectedVehicle));
+      console.log('🔍 Method 3 (number):', found);
+    }
+    
+    console.log('🔍 Final found vehicle:', found);
+    return found;
+  }, [vehicles, selectedVehicle]);
+
+  // Monitor state changes for debugging
+  useEffect(() => {
+    console.log('🔄 State changed - vehicles:', vehicles);
+    console.log('🔄 State changed - selectedVehicle:', selectedVehicle);
+    console.log('🔄 State changed - selectedVehicleData:', selectedVehicleData);
+  }, [vehicles, selectedVehicle, selectedVehicleData]);
 
   // Fetch vehicles on component mount
   useEffect(() => {
@@ -221,15 +256,22 @@ const TrackingMaps: React.FC = () => {
 
   const fetchVehicles = async () => {
     try {
+      console.log('🚗 Fetching vehicles...');
       setIsLoadingVehicles(true);
       const response = await vehicleAPI.getMyVehicles();
+      console.log('📡 Vehicle API response:', response);
       if (response.meta.code === 200 && response.data) {
+        console.log('✅ Vehicles data received:', response.data);
         setVehicles(response.data);
         if (response.data.length > 0) {
+          console.log('🎯 Setting selectedVehicle to:', response.data[0].id);
           setSelectedVehicle(response.data[0].id);
         }
+      } else {
+        console.warn('⚠️ No vehicles data in response');
       }
     } catch (err: any) {
+      console.error('❌ Error fetching vehicles:', err);
       setError(err.response?.data?.message || 'Failed to fetch vehicles');
     } finally {
       setIsLoadingVehicles(false);
@@ -534,8 +576,6 @@ const TrackingMaps: React.FC = () => {
     setCurrentCheckpoint(checkpointNumber);
     setIsPlaying(false);
   };
-
-  const selectedVehicleData = vehicles.find(v => v.id === selectedVehicle);
 
   if (isLoadingVehicles) {
     return (
@@ -946,21 +986,28 @@ const TrackingMaps: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <GoogleMaps
-                center={mapCenter}
-                zoom={13}
-                height="500px"
-                locations={showReplay ? (getReplayRouteData()?.locations || []) : mapLocations}
-                showRoute={showReplay ? true : showRoute}
-                routeOptions={showReplay ? getReplayRouteData()?.routeOptions : routeOptions}
-                routePath={routePath}
-                replayData={showReplay ? {
-                  currentPositions: getCurrentPositions(),
-                  isPlaying,
-                  currentTime: currentCheckpoint,
-                  totalTime: totalCheckpoints
-                } : undefined}
-              />
+              <>
+                <GoogleMaps
+                  center={mapCenter}
+                  zoom={13}
+                  height="500px"
+                  locations={showReplay ? (getReplayRouteData()?.locations || []) : mapLocations}
+                  showRoute={showReplay ? true : showRoute}
+                  routeOptions={showReplay ? getReplayRouteData()?.routeOptions : routeOptions}
+                  routePath={routePath}
+                  vehicleInfo={{
+                    plateNumber: selectedVehicleData?.plate_number,
+                    currentSpeed: locationLogs.length > 0 ? locationLogs[0].speed || 0 : 0
+                  }}
+                  replayData={showReplay ? {
+                    currentPositions: getCurrentPositions(),
+                    isPlaying,
+                    currentTime: currentCheckpoint,
+                    totalTime: totalCheckpoints
+                  } : undefined}
+                />
+              
+              </>
             )}
             
                          {!isLoading && mapLocations.length === 0 && selectedVehicle && (

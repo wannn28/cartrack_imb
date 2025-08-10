@@ -264,8 +264,8 @@ const MapsPage: React.FC = () => {
             routeOptions={routeOptions}
             onLocationClick={handleLocationClick}
             vehicleInfo={{
-              plateNumber: selectedVehicleData?.plate_number || 'BP 9921 DE',
-              currentSpeed: locationLogs.length > 0 ? locationLogs[locationLogs.length - 1]?.speed || 45.5 : 45.5
+              plateNumber: selectedVehicleData?.plate_number || 'Vehicle',
+              currentSpeed: locationLogs.length > 0 ? locationLogs[locationLogs.length - 1]?.speed || 0 : 0
             }}
           />
         )}
