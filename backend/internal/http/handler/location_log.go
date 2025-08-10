@@ -83,6 +83,8 @@ func (h *locationLogHandler) GetByVehicleID(c echo.Context) error {
 	// Check for date range
 	startDateStr := c.QueryParam("start_date")
 	endDateStr := c.QueryParam("end_date")
+	startTimeStr := c.QueryParam("start_time")
+	endTimeStr := c.QueryParam("end_time")
 
 	var logs []dto.LocationLogResponse
 	var total int64
@@ -98,8 +100,32 @@ func (h *locationLogHandler) GetByVehicleID(c echo.Context) error {
 			return response.BadRequest(c, "Invalid end_date format. Use YYYY-MM-DD", nil)
 		}
 
-		// Set end date to end of day
-		endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		// Parse time if provided, otherwise use default start/end of day
+		if startTimeStr != "" {
+			startTime, err := time.Parse("15:04", startTimeStr)
+			if err != nil {
+				return response.BadRequest(c, "Invalid start_time format. Use HH:MM (24-hour format)", nil)
+			}
+			startDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(),
+				startTime.Hour(), startTime.Minute(), 0, 0, startDate.Location())
+		} else {
+			// Default to start of day
+			startDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(),
+				0, 0, 0, 0, startDate.Location())
+		}
+
+		if endTimeStr != "" {
+			endTime, err := time.Parse("15:04", endTimeStr)
+			if err != nil {
+				return response.BadRequest(c, "Invalid end_time format. Use HH:MM (24-hour format)", nil)
+			}
+			endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(),
+				endTime.Hour(), endTime.Minute(), 59, 999999999, endDate.Location())
+		} else {
+			// Default to end of day
+			endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(),
+				23, 59, 59, 999999999, endDate.Location())
+		}
 
 		logs, total, err = h.locationLogService.GetByDateRangeWithPagination(userID, uint(vehicleID), startDate, endDate, limit, offset)
 		if err != nil {
@@ -137,6 +163,8 @@ func (h *locationLogHandler) GetMyLocationLogs(c echo.Context) error {
 	// Check for date range
 	startDateStr := c.QueryParam("start_date")
 	endDateStr := c.QueryParam("end_date")
+	startTimeStr := c.QueryParam("start_time")
+	endTimeStr := c.QueryParam("end_time")
 
 	var logs []dto.LocationLogResponse
 	var total int64
@@ -153,8 +181,32 @@ func (h *locationLogHandler) GetMyLocationLogs(c echo.Context) error {
 			return response.BadRequest(c, "Invalid end_date format. Use YYYY-MM-DD", nil)
 		}
 
-		// Set end date to end of day
-		endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		// Parse time if provided, otherwise use default start/end of day
+		if startTimeStr != "" {
+			startTime, err := time.Parse("15:04", startTimeStr)
+			if err != nil {
+				return response.BadRequest(c, "Invalid start_time format. Use HH:MM (24-hour format)", nil)
+			}
+			startDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(),
+				startTime.Hour(), startTime.Minute(), 0, 0, startDate.Location())
+		} else {
+			// Default to start of day
+			startDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(),
+				0, 0, 0, 0, startDate.Location())
+		}
+
+		if endTimeStr != "" {
+			endTime, err := time.Parse("15:04", endTimeStr)
+			if err != nil {
+				return response.BadRequest(c, "Invalid end_time format. Use HH:MM (24-hour format)", nil)
+			}
+			endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(),
+				endTime.Hour(), endTime.Minute(), 59, 999999999, endDate.Location())
+		} else {
+			// Default to end of day
+			endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(),
+				23, 59, 59, 999999999, endDate.Location())
+		}
 
 		logs, total, err = h.locationLogService.GetByUserIDWithDateRange(userID, startDate, endDate, limit, offset)
 		if err != nil {
