@@ -106,6 +106,8 @@ func (h *locationLogHandler) GetByVehicleID(c echo.Context) error {
 			if err != nil {
 				return response.BadRequest(c, "Invalid start_time format. Use HH:MM (24-hour format)", nil)
 			}
+			// Add +7 hours for Indonesia timezone
+			startTime = startTime.Add(7 * time.Hour)
 			startDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(),
 				startTime.Hour(), startTime.Minute(), 0, 0, startDate.Location())
 		} else {
@@ -119,6 +121,8 @@ func (h *locationLogHandler) GetByVehicleID(c echo.Context) error {
 			if err != nil {
 				return response.BadRequest(c, "Invalid end_time format. Use HH:MM (24-hour format)", nil)
 			}
+			// Add +7 hours for Indonesia timezone
+			endTime = endTime.Add(7 * time.Hour)
 			endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(),
 				endTime.Hour(), endTime.Minute(), 59, 999999999, endDate.Location())
 		} else {
@@ -187,6 +191,8 @@ func (h *locationLogHandler) GetMyLocationLogs(c echo.Context) error {
 			if err != nil {
 				return response.BadRequest(c, "Invalid start_time format. Use HH:MM (24-hour format)", nil)
 			}
+			// Add +7 hours for Indonesia timezone
+			startTime = startTime.Add(7 * time.Hour)
 			startDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(),
 				startTime.Hour(), startTime.Minute(), 0, 0, startDate.Location())
 		} else {
@@ -200,6 +206,8 @@ func (h *locationLogHandler) GetMyLocationLogs(c echo.Context) error {
 			if err != nil {
 				return response.BadRequest(c, "Invalid end_time format. Use HH:MM (24-hour format)", nil)
 			}
+			// Add +7 hours for Indonesia timezone
+			endTime = endTime.Add(7 * time.Hour)
 			endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(),
 				endTime.Hour(), endTime.Minute(), 59, 999999999, endDate.Location())
 		} else {
