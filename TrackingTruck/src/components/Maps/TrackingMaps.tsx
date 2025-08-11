@@ -651,7 +651,14 @@ const TrackingMaps: React.FC = () => {
   // Handle checkpoint icon click
   const handleCheckpointClick = (checkpointNumber: number) => {
     setCurrentCheckpoint(checkpointNumber);
-    setIsPlaying(false);
+  };
+
+  const handleTimelineClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const percentage = clickX / rect.width;
+    const newCheckpoint = Math.max(1, Math.min(totalCheckpoints, Math.round(percentage * totalCheckpoints)));
+    setCurrentCheckpoint(newCheckpoint);
   };
 
   if (isLoadingVehicles) {
@@ -1028,41 +1035,112 @@ const TrackingMaps: React.FC = () => {
               </select>
             </div>
             
-            {/* Checkpoint Visual Dividers */}
+            {/* Improved Timeline Navigation */}
             {totalCheckpoints > 0 && (
-              <div className="flex items-center justify-between mb-2">
-                {Array.from({ length: totalCheckpoints }, (_, i) => (
-                  <div key={i} className="flex flex-col items-center">
-                    <div 
-                      className={`w-3 h-3 rounded-full border-2 transition-colors duration-200 ${
-                        i + 1 <= currentCheckpoint 
-                          ? 'bg-blue-500 border-blue-500 hover:bg-blue-600' 
-                          : 'bg-gray-200 border-gray-300 hover:bg-gray-300'
-                      }`}
-                      onClick={() => handleCheckpointClick(i + 1)}
-                      style={{ cursor: 'pointer' }}
-                      title={`Click to go to Checkpoint ${i + 1}`}
-                    />
-                    <span className="text-xs text-gray-500 mt-1">{i + 1}</span>
+              <div className="space-y-3">
+                {/* Quick Navigation Buttons */}
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => setCurrentCheckpoint(1)}
+                    disabled={currentCheckpoint === 1}
+                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    First
+                  </button>
+                  <button
+                    onClick={() => setCurrentCheckpoint(Math.max(1, currentCheckpoint - 10))}
+                    disabled={currentCheckpoint <= 10}
+                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    -10
+                  </button>
+                  <button
+                    onClick={() => setCurrentCheckpoint(Math.max(1, currentCheckpoint - 1))}
+                    disabled={currentCheckpoint <= 1}
+                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    -1
+                  </button>
+                  <span className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded font-medium">
+                    {currentCheckpoint}
+                  </span>
+                  <button
+                    onClick={() => setCurrentCheckpoint(Math.min(totalCheckpoints, currentCheckpoint + 1))}
+                    disabled={currentCheckpoint >= totalCheckpoints}
+                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    +1
+                  </button>
+                  <button
+                    onClick={() => setCurrentCheckpoint(Math.min(totalCheckpoints, currentCheckpoint + 10))}
+                    disabled={currentCheckpoint >= totalCheckpoints - 9}
+                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    +10
+                  </button>
+                  <button
+                    onClick={() => setCurrentCheckpoint(totalCheckpoints)}
+                    disabled={currentCheckpoint === totalCheckpoints}
+                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    Last
+                  </button>
+                </div>
+                
+                {/* Compact Timeline */}
+                <div className="relative">
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                    <span>1</span>
+                    <span className="text-blue-600 font-medium">Checkpoint {currentCheckpoint}</span>
+                    <span>{totalCheckpoints}</span>
                   </div>
-                ))}
-              </div>
-            )}
-            
-            {/* Connecting Lines */}
-            {totalCheckpoints > 1 && (
-              <div className="relative mb-2">
-                <div className="flex justify-between">
-                  {Array.from({ length: totalCheckpoints - 1 }, (_, i) => (
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
-                      key={i} 
-                      className={`h-0.5 flex-1 mx-2 ${
-                        i + 1 < currentCheckpoint 
-                          ? 'bg-blue-500' 
-                          : 'bg-gray-300'
-                      }`}
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-200"
+                      style={{ width: `${(currentCheckpoint / totalCheckpoints) * 100}%` }}
                     />
-                  ))}
+                  </div>
+                  
+                  {/* Clickable Timeline */}
+                  <div className="relative mt-2">
+                    <div 
+                      className="w-full h-4 bg-gray-100 rounded cursor-pointer hover:bg-gray-200 transition-colors"
+                      onClick={handleTimelineClick}
+                      title="Click anywhere on timeline to jump to position"
+                    >
+                      {/* Current Position Indicator */}
+                      <div 
+                        className="absolute top-0 w-3 h-4 bg-blue-500 rounded transform -translate-x-1/2 transition-all duration-200"
+                        style={{ left: `${(currentCheckpoint / totalCheckpoints) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Jump to Specific Checkpoint */}
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    min="1"
+                    max={totalCheckpoints}
+                    value={currentCheckpoint}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (value >= 1 && value <= totalCheckpoints) {
+                        setCurrentCheckpoint(value);
+                      }
+                    }}
+                    className="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-gray-500">of {totalCheckpoints}</span>
+                  <button
+                    onClick={() => setCurrentCheckpoint(Math.floor(totalCheckpoints / 2))}
+                    className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  >
+                    Middle
+                  </button>
                 </div>
               </div>
             )}
