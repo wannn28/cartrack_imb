@@ -116,6 +116,39 @@ The migration files create the following tables:
 5. **camera_feeds** - Camera feed management
 6. **system_logs** - System logging
 
+## API Features
+
+### Location Logs with Time Range Filtering
+
+The location logs API now supports precise time range filtering in addition to date range filtering:
+
+#### Query Parameters
+- `start_date` - Start date (YYYY-MM-DD format)
+- `end_date` - End date (YYYY-MM-DD format)  
+- `start_time` - Start time (HH:MM format, 24-hour)
+- `end_time` - End time (HH:MM format, 24-hour)
+
+#### Usage Examples
+
+```bash
+# Filter by date only (entire day)
+GET /api/v1/location-logs?vehicle_id=1&start_date=2025-01-01&end_date=2025-01-31
+
+# Filter by specific time range on a single day
+GET /api/v1/location-logs?vehicle_id=1&start_date=2025-01-01&end_date=2025-01-01&start_time=08:00&end_time=17:00
+
+# Filter by date range with specific start time
+GET /api/v1/location-logs?vehicle_id=1&start_date=2025-01-01&end_date=2025-01-31&start_time=09:00
+
+# Filter by date range with specific end time
+GET /api/v1/location-logs?vehicle_id=1&start_date=2025-01-01&end_date=2025-01-31&end_time=18:00
+```
+
+#### Default Behavior
+- If `start_time` is not provided, defaults to 00:00 (start of day)
+- If `end_time` is not provided, defaults to 23:59:59 (end of day)
+- Time format must be HH:MM in 24-hour format (e.g., 14:30 for 2:30 PM)
+
 ## Development
 
 ### Prerequisites

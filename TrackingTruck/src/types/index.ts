@@ -82,6 +82,16 @@ export interface CreateLocationLogRequest {
   direction?: number;
 }
 
+// Date and time parameters for API calls
+export interface DateTimeParams {
+  start_date?: string;
+  end_date?: string;
+  start_time?: string;
+  end_time?: string;
+  limit?: number;
+  offset?: number;
+}
+
 // Fuel types
 export interface FuelLog {
   id: string;

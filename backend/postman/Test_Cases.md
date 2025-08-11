@@ -528,3 +528,51 @@ pm.test("Response has correct structure", function () {
 
 🧪 **Testing Guide**: Run tests in order for dependencies between test cases.
 📋 **Reporting**: Document any failures with detailed reproduction steps.
+
+## 📍 Location Logs Testing
+
+### 1. Create Location Log
+1. POST `/api/v1/location-logs` with valid GPS data
+   - **Test Case**: Send location with valid coordinates
+   - **Expected**: 201 Created with location data
+   - **Validation**: Check if timestamp is recorded correctly
+
+### 2. Get Location History with Date Range
+1. Create multiple location logs
+2. GET `/api/v1/location-logs?vehicle_id={id}`
+   - **Test Case**: Get all logs for a vehicle
+   - **Expected**: 200 OK with paginated results
+   - **Validation**: Check pagination and data structure
+
+### 3. Get Location History with Date and Time Range
+1. Create multiple location logs across different times
+2. GET `/api/v1/location-logs?vehicle_id={id}&start_date=2025-01-01&end_date=2025-01-01&start_time=08:00&end_time=17:00`
+   - **Test Case**: Filter logs by specific date and time range (8 AM to 5 PM)
+   - **Expected**: 200 OK with logs only within specified time range
+   - **Validation**: Verify only logs between 08:00-17:00 are returned
+
+3. GET `/api/v1/location-logs?vehicle_id={id}&start_date=2025-01-01&end_date=2025-01-01&start_time=00:00&end_time=23:59`
+   - **Test Case**: Filter logs by specific date with full day time range
+   - **Expected**: 200 OK with all logs for the specified date
+   - **Validation**: Verify all logs for the date are returned
+
+4. GET `/api/v1/location-logs?vehicle_id={id}&start_date=2025-01-01&end_date=2025-01-31`
+   - **Test Case**: Filter logs by date range only (no time specified)
+   - **Expected**: 200 OK with logs for the entire date range
+   - **Validation**: Verify logs from start_date 00:00 to end_date 23:59 are returned
+
+### 4. Time Range Validation
+1. GET `/api/v1/location-logs?vehicle_id={id}&start_date=2025-01-01&end_date=2025-01-01&start_time=25:00`
+   - **Test Case**: Invalid time format (hour > 24)
+   - **Expected**: 400 Bad Request with error message
+   - **Validation**: Check error message format
+
+2. GET `/api/v1/location-logs?vehicle_id={id}&start_date=2025-01-01&end_date=2025-01-01&start_time=08:60`
+   - **Test Case**: Invalid time format (minute > 59)
+   - **Expected**: 400 Bad Request with error message
+   - **Validation**: Check error message format
+
+3. GET `/api/v1/location-logs?vehicle_id={id}&start_date=2025-01-01&end_date=2025-01-01&start_time=abc`
+   - **Test Case**: Invalid time format (non-numeric)
+   - **Expected**: 400 Bad Request with error message
+   - **Validation**: Check error message format

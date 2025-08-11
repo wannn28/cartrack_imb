@@ -47,12 +47,19 @@ const TrackingMaps: React.FC = () => {
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
 
+  // Time range functionality
+  const [startTime, setStartTime] = useState<string>('');
+  const [endTime, setEndTime] = useState<string>('');
+  const [timeMode, setTimeMode] = useState<'single' | 'range'>('single');
+  const [singleTime, setSingleTime] = useState<string>('');
+
   // Replay controls
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentCheckpoint, setCurrentCheckpoint] = useState(1);
   const [totalCheckpoints, setTotalCheckpoints] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showReplay, setShowReplay] = useState(false);
+  const [showAllRoutes, setShowAllRoutes] = useState(false);
   
   const intervalRef = useRef<number | null>(null);
 
@@ -103,6 +110,32 @@ const TrackingMaps: React.FC = () => {
     return null;
   };
 
+  // Clear time filters and reset data
+  const clearTimeFilters = () => {
+    setStartTime('');
+    setEndTime('');
+    setSingleTime('');
+    setTimeMode('single');
+    if (selectedVehicle) {
+      fetchLocationLogs(selectedVehicle);
+    }
+  };
+
+  // Utility function to subtract 7 hours from time string (HH:MM format)
+  const subtract7Hours = (timeString: string): string => {
+    if (!timeString) return timeString;
+    
+    const [hours, minutes] = timeString.split(':').map(Number);
+    let newHours = hours - 7;
+    
+    // Handle negative hours (wrap around to previous day)
+    if (newHours < 0) {
+      newHours += 24;
+    }
+    
+    return `${newHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
   const selectedVehicleData = useMemo(() => {
     console.log('🔍 Calculating selectedVehicleData:', { 
       vehicles, 
@@ -150,24 +183,12 @@ const TrackingMaps: React.FC = () => {
     });
   }, []);
 
-  // Fetch location logs when vehicle is selected or date range changes
+  // Fetch location logs when selected vehicle or date range changes
   useEffect(() => {
     if (selectedVehicle) {
-      // Reset all vehicle-related state when selecting a new vehicle
-      setLocationLogs([]);
-      setMapLocations([]);
-      setRouteOptions(undefined);
-      setRoutePath(undefined);
-      setShowRoute(true);
-      setDirectionsStatus('idle');
-      setCurrentCheckpoint(1);
-      setIsPlaying(false);
-      setShowReplay(false);
-      
-      // Fetch location logs for the selected vehicle
       fetchLocationLogs(selectedVehicle);
     }
-  }, [selectedVehicle, selectedDateRange, customStartDate, customEndDate]);
+  }, [selectedVehicle, selectedDateRange, customStartDate, customEndDate, startTime, endTime, singleTime, timeMode, showAllRoutes]);
 
   // Update map locations when location logs change
   useEffect(() => {
@@ -217,6 +238,15 @@ const TrackingMaps: React.FC = () => {
         console.log(`📍 ${locations.length} locations - processing route`);
         processRouteForVehicle(locations);
       }
+    } else {
+      // If locationLogs becomes empty, clear mapLocations
+      setMapLocations([]);
+      setTotalCheckpoints(0);
+      setRouteOptions(undefined);
+      setRoutePath(undefined);
+      setShowRoute(false);
+      setDirectionsStatus('idle');
+      console.log('📍 No location logs, clearing map locations.');
     }
   }, [locationLogs]);
 
@@ -290,11 +320,39 @@ const TrackingMaps: React.FC = () => {
       
       console.log(`📅 Fetching data for date range: ${dateRange.start_date} to ${dateRange.end_date}`);
       
-      // Use the enhanced API method with date range parameters
+      // Validate time range - prevent API call if start and end time are the same
+      if (startTime && endTime && startTime === endTime) {
+        console.log('⚠️ Start and end time are the same, clearing data');
+        setLocationLogs([]);
+        setMapLocations([]);
+        setRoutePath(undefined);
+        setError('Start time and end time cannot be the same');
+        return;
+      }
+      
+      // Handle time parameters based on mode
+      let apiStartTime = undefined;
+      let apiEndTime = undefined;
+      
+      if (timeMode === 'single' && singleTime) {
+        // Single time mode: from 07:00 to selected time
+        apiStartTime = subtract7Hours("07:00"); // 07:00 becomes 00:00 (previous day)
+        apiEndTime = subtract7Hours(singleTime);
+        console.log(`⏰ Single time mode: ${apiStartTime} to ${apiEndTime} (converted from 07:00 to ${singleTime})`);
+      } else if (timeMode === 'range') {
+        // Time range mode: use start and end times
+        apiStartTime = startTime ? subtract7Hours(startTime) : undefined;
+        apiEndTime = endTime ? subtract7Hours(endTime) : undefined;
+        console.log(`⏰ Range mode: ${apiStartTime || '00:00'} to ${apiEndTime || '23:59'} (converted from ${startTime || '00:00'} to ${endTime || '23:59'})`);
+      }
+      
+      // Use the enhanced API method with date range and time parameters
       const response = await locationAPI.getAllLocationLogs(vehicleId, {
         start_date: dateRange.start_date,
         end_date: dateRange.end_date,
-        limit: 100000000,
+        start_time: apiStartTime,
+        end_time: apiEndTime,
+        limit: showAllRoutes ? 100000000 : 100,
         offset: 0
       });
       
@@ -306,22 +364,41 @@ const TrackingMaps: React.FC = () => {
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
         setLocationLogs(sortedLogs);
+        
+        // Clear route data if no logs found
+        if (sortedLogs.length === 0) {
+          setRoutePath(undefined);
+          setMapLocations([]);
+        }
       } else {
         console.warn(`⚠️ No location data found for vehicle ${vehicleId}`);
         setError('No location data found for this vehicle');
         setLocationLogs([]);
+        setRoutePath(undefined);
+        setMapLocations([]);
       }
     } catch (err: any) {
       console.error(`❌ Error fetching location logs for vehicle ${vehicleId}:`, err);
       setError(err.response?.data?.message || 'Failed to fetch location logs');
       setLocationLogs([]);
+      setRoutePath(undefined);
+      setMapLocations([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const calculateDataStats = (logs: LocationLog[]) => {
-    if (logs.length === 0) return;
+    if (logs.length === 0) {
+      // Clear stats when no logs
+      setDataStats({
+        totalLogs: 0,
+        dateRange: { start: '', end: '' },
+        avgSpeed: 0,
+        totalDistance: 0
+      });
+      return;
+    }
 
     const totalLogs = logs.length;
     const dates = logs.map(log => new Date(log.timestamp));
@@ -743,6 +820,80 @@ const TrackingMaps: React.FC = () => {
                 placeholder="End Date"
               />
             </div>
+            
+            {/* Time Range Selection */}
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-blue-500" />
+              <span className="text-sm text-gray-500">Time Mode:</span>
+              <select
+                value={timeMode}
+                onChange={(e) => setTimeMode(e.target.value as 'single' | 'range')}
+                className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="single">Single Time (07:00 to selected)</option>
+                <option value="range">Time Range</option>
+              </select>
+              
+              {timeMode === 'single' ? (
+                <>
+                  <span className="text-sm text-gray-500">Time:</span>
+                  <input
+                    type="time"
+                    value={singleTime}
+                    onChange={(e) => setSingleTime(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Select time"
+                  />
+                </>
+              ) : (
+                <>
+                  <span className="text-sm text-gray-500">Time Range:</span>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Start Time"
+                  />
+                  <span className="text-sm text-gray-500">to</span>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="End Time"
+                  />
+                </>
+              )}
+              
+              {timeMode === 'single' && singleTime && startTime && endTime && startTime === endTime && (
+                <span className="text-xs text-red-500 ml-2">
+                  ⚠️ Start and end time cannot be the same
+                </span>
+              )}
+              {(timeMode === 'single' && singleTime) || (timeMode === 'range' && (startTime || endTime)) ? (
+                <button
+                  onClick={clearTimeFilters}
+                  className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+                  title="Clear time filters"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+            
+            {/* Route Limit Control */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Route Limit:</span>
+              <select
+                value={showAllRoutes ? 'all' : 'limited'}
+                onChange={(e) => setShowAllRoutes(e.target.value === 'all')}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="limited">Rute Terbaru</option>
+                <option value="all">Semua Rute (Garis Lurus)</option>
+              </select>
+            </div>
           </div>
           
           {/* Current Date Range Display */}
@@ -755,6 +906,22 @@ const TrackingMaps: React.FC = () => {
                 {getDateRange().start_date} to {getDateRange().end_date}
               </span>
             )}
+            {(timeMode === 'single' && singleTime) && (
+              <span className="ml-4 text-green-600">
+                <Clock className="w-4 h-4 inline mr-1" />
+                Time: 07:00 to {singleTime} (API: {subtract7Hours("07:00")} to {subtract7Hours(singleTime)})
+              </span>
+            )}
+            {(timeMode === 'range' && (startTime || endTime)) && (
+              <span className="ml-4 text-green-600">
+                <Clock className="w-4 h-4 inline mr-1" />
+                Time: {startTime || '00:00'} to {endTime || '23:59'} (API: {startTime ? subtract7Hours(startTime) : '00:00'} to {endTime ? subtract7Hours(endTime) : '23:59'})
+              </span>
+            )}
+            <span className="ml-4 text-blue-600">
+              <Route className="w-4 h-4 inline mr-1" />
+              {showAllRoutes ? 'Showing all routes' : 'Showing latest 100 routes'}
+            </span>
           </div>
         </div>
       </div>
@@ -1010,15 +1177,15 @@ const TrackingMaps: React.FC = () => {
               </>
             )}
             
-                         {!isLoading && mapLocations.length === 0 && selectedVehicle && (
-               <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
-                 <div className="text-center">
-                   <Navigation className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                   <p className="text-gray-600 font-medium">No Location Data</p>
-                   <p className="text-sm text-gray-500 mt-1">No tracking data found for this vehicle</p>
-                 </div>
-               </div>
-             )}
+            {!isLoading && mapLocations.length === 0 && selectedVehicle && (
+              <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
+                <div className="text-center">
+                  <Navigation className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                  <p className="text-gray-600 font-medium">No Location Data</p>
+                  <p className="text-sm text-gray-500 mt-1">No tracking data found for this vehicle</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1028,46 +1195,53 @@ const TrackingMaps: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Recent Locations ({locationLogs.length})
             </h3>
-                         <div className="space-y-2 max-h-96 overflow-y-auto">
-               {locationLogs
-                 .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-                 .slice(0, 50)
-                 .map((log, index) => (
-                 <div key={log.id} className="p-3 bg-gray-50 rounded-md">
-                   <div className="flex items-center justify-between">
-                     <div className="flex items-center">
-                       <Navigation className="w-4 h-4 text-blue-500 mr-2" />
-                       <span className="font-medium text-sm">#{index + 1}</span>
-                     </div>
-                     {log.speed && (
-                       <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                         {log.speed} km/h
-                       </span>
-                     )}
-                   </div>
-                   <div className="mt-1">
-                     <p className="text-xs text-gray-600">
-                       <Clock className="w-3 h-3 inline mr-1" />
-                       {new Date(log.timestamp).toLocaleString('id-ID')}
-                     </p>
-                     <p className="text-xs text-gray-500 mt-1">
-                       Lat: {log.latitude.toFixed(6)}<br />
-                       Lng: {log.longitude.toFixed(6)}
-                     </p>
-                   </div>
-                 </div>
-               ))}
-              {locationLogs.length === 0 && (
+            
+            {/* Debug Info */}
+          
+            
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {locationLogs.length > 0 ? (
+                <>
+                  {locationLogs
+                    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                    .slice(0, showAllRoutes ? locationLogs.length : 50)
+                    .map((log, index) => (
+                      <div key={log.id} className="p-3 bg-gray-50 rounded-md">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Navigation className="w-4 h-4 text-blue-500 mr-2" />
+                            <span className="font-medium text-sm">#{index + 1}</span>
+                          </div>
+                          {log.speed && (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                              {log.speed} km/h
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1">
+                          <p className="text-xs text-gray-600">
+                            <Clock className="w-3 h-3 inline mr-1" />
+                            {new Date(log.timestamp).toLocaleString('id-ID')}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Lat: {log.latitude.toFixed(6)}<br />
+                            Lng: {log.longitude.toFixed(6)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  {!showAllRoutes && locationLogs.length > 50 && (
+                    <div className="text-center py-2">
+                      <p className="text-xs text-gray-500">
+                        Showing first 50 of {locationLogs.length} locations
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
                 <p className="text-gray-500 text-sm text-center py-4">
                   No location logs available
                 </p>
-              )}
-              {locationLogs.length > 50 && (
-                <div className="text-center py-2">
-                  <p className="text-xs text-gray-500">
-                    Showing first 50 of {locationLogs.length} locations
-                  </p>
-                </div>
               )}
             </div>
           </div>

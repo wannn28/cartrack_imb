@@ -14,7 +14,8 @@ import type {
   CreateFuelLogRequest,
   FuelStatistics,
   APIKey,
-  CreateAPIKeyRequest
+  CreateAPIKeyRequest,
+  DateTimeParams
 } from '../types';
 
 // Base API configuration
@@ -137,22 +138,26 @@ export const locationAPI = {
     }).then(res => res.data),
     
   // Enhanced method for massive data retrieval
-  getAllLocationLogs: (vehicleId: string, dateParams?: { start_date?: string; end_date?: string; limit?: number; offset?: number }): Promise<BackendApiResponse<LocationLog[]>> =>
+  getAllLocationLogs: (vehicleId: string, dateParams?: DateTimeParams): Promise<BackendApiResponse<LocationLog[]>> =>
     api.get('/location-logs/vehicle', {
       params: {
         vehicle_id: vehicleId,
         start_date: dateParams?.start_date,
         end_date: dateParams?.end_date,
+        start_time: dateParams?.start_time,
+        end_time: dateParams?.end_time,
         limit: dateParams?.limit || 10000000000,
         offset: dateParams?.offset || 0
       }
     }).then(res => res.data),
 
-  getAllLocationLogsForAllVehicles: (dateParams?: { start_date?: string; end_date?: string; limit?: number; offset?: number }): Promise<BackendApiResponse<LocationLog[]>> =>
+  getAllLocationLogsForAllVehicles: (dateParams?: DateTimeParams): Promise<BackendApiResponse<LocationLog[]>> =>
     api.get('/location-logs', {
       params: {
         start_date: dateParams?.start_date,
         end_date: dateParams?.end_date,
+        start_time: dateParams?.start_time,
+        end_time: dateParams?.end_time,
         limit: dateParams?.limit || 1000000,
         offset: dateParams?.offset || 0
       }

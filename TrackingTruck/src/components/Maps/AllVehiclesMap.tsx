@@ -5,7 +5,7 @@ import { vehicleAPI, locationAPI } from '../../services/api';
 import { directionsJSService } from '../../services/directions-js';
 import type { Vehicle, LocationLog } from '../../types';
 import type { MapLocation, RouteOptions, RoutePath } from '../../types/google-maps';
-import { Route, Navigation, Truck, RefreshCw, Eye, EyeOff, Calendar } from 'lucide-react';
+import { Route, Navigation, Truck, RefreshCw, Eye, EyeOff, Calendar, Clock } from 'lucide-react';
 
 // Color palette for different vehicles
 const VEHICLE_COLORS = [
@@ -41,11 +41,18 @@ const AllVehiclesMap: React.FC = () => {
   const [isLoadingRoutes, setIsLoadingRoutes] = useState(false);
   const [error, setError] = useState('');
   const [directionsStatus, setDirectionsStatus] = useState<'idle' | 'working' | 'success' | 'failed'>('idle');
+  const [showAllRoutes, setShowAllRoutes] = useState(false);
 
   // Date range functionality
   const [selectedDateRange, setSelectedDateRange] = useState<'today' | 'yesterday' | 'day_before_yesterday'>('today');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+
+  // Time range functionality
+  const [startTime, setStartTime] = useState<string>('');
+  const [endTime, setEndTime] = useState<string>('');
+  const [timeMode, setTimeMode] = useState<'single' | 'range'>('single');
+  const [singleTime, setSingleTime] = useState<string>('');
 
   // Get date range based on selection
   const getDateRange = () => {
@@ -94,6 +101,30 @@ const AllVehiclesMap: React.FC = () => {
     return null;
   };
 
+  // Clear time filters and reset data
+  const clearTimeFilters = () => {
+    setStartTime('');
+    setEndTime('');
+    setSingleTime('');
+    setTimeMode('single');
+    fetchAllLocationLogs();
+  };
+
+  // Utility function to subtract 7 hours from time string (HH:MM format)
+  const subtract7Hours = (timeString: string): string => {
+    if (!timeString) return timeString;
+    
+    const [hours, minutes] = timeString.split(':').map(Number);
+    let newHours = hours - 7;
+    
+    // Handle negative hours (wrap around to previous day)
+    if (newHours < 0) {
+      newHours += 24;
+    }
+    
+    return `${newHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
   // Fetch vehicles on component mount
   useEffect(() => {
     fetchVehicles();
@@ -111,7 +142,7 @@ const AllVehiclesMap: React.FC = () => {
     if (vehicles.length > 0) {
       fetchAllLocationLogs();
     }
-  }, [vehicles, selectedDateRange, customStartDate, customEndDate]);
+  }, [vehicles, selectedDateRange, customStartDate, customEndDate, startTime, endTime, singleTime, timeMode, showAllRoutes]);
 
   // Process location logs into vehicle routes
   useEffect(() => {
@@ -262,10 +293,37 @@ const AllVehiclesMap: React.FC = () => {
       
       console.log(`📅 Fetching data for date range: ${dateRange.start_date} to ${dateRange.end_date}`);
       
+      // Validate time range - prevent API call if start and end time are the same
+      if (startTime && endTime && startTime === endTime) {
+        console.log('⚠️ Start and end time are the same, clearing data');
+        setAllLocationLogs([]);
+        setVehicleRoutes([]);
+        setError('Start time and end time cannot be the same');
+        return;
+      }
+      
+      // Handle time parameters based on mode
+      let apiStartTime = undefined;
+      let apiEndTime = undefined;
+      
+      if (timeMode === 'single' && singleTime) {
+        // Single time mode: from 07:00 to selected time
+        apiStartTime = subtract7Hours("07:00"); // 07:00 becomes 00:00 (previous day)
+        apiEndTime = subtract7Hours(singleTime);
+        console.log(`⏰ Single time mode: ${apiStartTime} to ${apiEndTime} (converted from 07:00 to ${singleTime})`);
+      } else if (timeMode === 'range') {
+        // Time range mode: use start and end times
+        apiStartTime = startTime ? subtract7Hours(startTime) : undefined;
+        apiEndTime = endTime ? subtract7Hours(endTime) : undefined;
+        console.log(`⏰ Range mode: ${apiStartTime || '00:00'} to ${apiEndTime || '23:59'} (converted from ${startTime || '00:00'} to ${endTime || '23:59'})`);
+      }
+      
       const response = await locationAPI.getAllLocationLogsForAllVehicles({
         start_date: dateRange.start_date,
         end_date: dateRange.end_date,
-        limit: 10000000000000,
+        start_time: apiStartTime,
+        end_time: apiEndTime,
+        limit: showAllRoutes ? 10000000000000 : 100, // Use showAllRoutes state
         offset: 0
       });
       
@@ -278,13 +336,20 @@ const AllVehiclesMap: React.FC = () => {
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
         setAllLocationLogs(sortedLogs);
+        
+        // Clear vehicle routes if no logs found
+        if (sortedLogs.length === 0) {
+          setVehicleRoutes([]);
+        }
       } else {
         setError('No location data found');
         setAllLocationLogs([]);
+        setVehicleRoutes([]);
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch location logs');
       setAllLocationLogs([]);
+      setVehicleRoutes([]);
     } finally {
       setIsLoading(false);
     }
@@ -370,6 +435,19 @@ const AllVehiclesMap: React.FC = () => {
           </div>
           
           <div className="flex gap-2">
+            {/* Route Display Toggle */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Tampilkan:</label>
+              <select
+                value={showAllRoutes ? 'all' : 'limited'}
+                onChange={(e) => setShowAllRoutes(e.target.value === 'all')}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="limited">Rute Terbaru</option>
+                <option value="all">Semua Rute  (Garis Lurus)</option>
+              </select>
+            </div>
+            
             <button
               onClick={handleRefresh}
               disabled={isLoading}
@@ -452,6 +530,67 @@ const AllVehiclesMap: React.FC = () => {
                 placeholder="End Date"
               />
             </div>
+            
+            {/* Time Range Selection */}
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-blue-500" />
+              <span className="text-sm text-gray-500">Time Mode:</span>
+              <select
+                value={timeMode}
+                onChange={(e) => setTimeMode(e.target.value as 'single' | 'range')}
+                className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="single">Single Time (07:00 to selected)</option>
+                <option value="range">Time Range</option>
+              </select>
+              
+              {timeMode === 'single' ? (
+                <>
+                  <span className="text-sm text-gray-500">Time:</span>
+                  <input
+                    type="time"
+                    value={singleTime}
+                    onChange={(e) => setSingleTime(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Select time"
+                  />
+                </>
+              ) : (
+                <>
+                  <span className="text-sm text-gray-500">Time Range:</span>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500"
+                    placeholder="Start Time"
+                  />
+                  <span className="text-sm text-gray-500">to</span>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500"
+                    placeholder="End Time"
+                  />
+                </>
+              )}
+              
+              {timeMode === 'single' && singleTime && startTime && endTime && startTime === endTime && (
+                <span className="text-xs text-red-500 ml-2">
+                  ⚠️ Start and end time cannot be the same
+                </span>
+              )}
+              {(timeMode === 'single' && singleTime) || (timeMode === 'range' && (startTime || endTime)) ? (
+                <button
+                  onClick={clearTimeFilters}
+                  className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+                  title="Clear time filters"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
           </div>
           
           {/* Current Date Range Display */}
@@ -464,6 +603,22 @@ const AllVehiclesMap: React.FC = () => {
                 {getDateRange().start_date} to {getDateRange().end_date}
               </span>
             )}
+            {(timeMode === 'single' && singleTime) && (
+              <span className="ml-4 text-green-600">
+                <Clock className="w-4 h-4 inline mr-1" />
+                Time: 07:00 to {singleTime} (API: {subtract7Hours("07:00")} to {subtract7Hours(singleTime)})
+              </span>
+            )}
+            {(timeMode === 'range' && (startTime || endTime)) && (
+              <span className="ml-4 text-green-600">
+                <Clock className="w-4 h-4 inline mr-1" />
+                Time: {startTime || '00:00'} to {endTime || '23:59'} (API: {startTime ? subtract7Hours(startTime) : '00:00'} to {endTime ? subtract7Hours(endTime) : '23:59'})
+              </span>
+            )}
+            <span className="ml-4 text-blue-600">
+              <Route className="w-4 h-4 inline mr-1" />
+              {showAllRoutes ? 'Showing all routes' : 'Showing latest 100 routes'}
+            </span>
           </div>
         </div>
 

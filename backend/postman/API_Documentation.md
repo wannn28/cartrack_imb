@@ -194,8 +194,13 @@ Authorization: ApiKey {{api_key}}
 - **GET** `/api/v1/location-logs?limit=50&offset=0`
 - **Auth**: Required
 - **Description**: Returns all location logs for the authenticated user across all their vehicles
-- **Query Params**: limit, offset, start_date, end_date
+- **Query Params**: limit, offset, start_date, end_date, start_time, end_time
 - **Date Range**: Optional filtering by date range (format: YYYY-MM-DD)
+- **Time Range**: Optional filtering by time range (format: HH:MM, 24-hour format)
+- **Examples**:
+  - `?start_date=2025-01-01&end_date=2025-01-31` - Filter by date only
+  - `?start_date=2025-01-01&end_date=2025-01-01&start_time=08:00&end_time=17:00` - Filter by date and time (8 AM to 5 PM)
+  - `?start_date=2025-01-01&end_date=2025-01-01&start_time=00:00&end_time=23:59` - Filter by date and time (full day)
 - **Response**: Includes vehicle information including plate number
 - **Sample Response**:
 ```json
@@ -236,7 +241,12 @@ Authorization: ApiKey {{api_key}}
 - **GET** `/api/v1/location-logs/vehicle?vehicle_id={id}&limit=50&offset=0`
 - **Auth**: Required
 - **Description**: Returns location logs for a specific vehicle only
-- **Query Params**: vehicle_id (required), limit, offset, start_date, end_date
+- **Query Params**: vehicle_id (required), limit, offset, start_date, end_date, start_time, end_time
+- **Date Range**: Optional filtering by date range (format: YYYY-MM-DD)
+- **Time Range**: Optional filtering by time range (format: HH:MM, 24-hour format)
+- **Examples**:
+  - `?vehicle_id=1&start_date=2025-01-01&end_date=2025-01-31` - Filter by date only
+  - `?vehicle_id=1&start_date=2025-01-01&end_date=2025-01-01&start_time=08:00&end_time=17:00` - Filter by date and time (8 AM to 5 PM)
 - **Note**: This endpoint returns logs for the specified vehicle only, unlike the general location logs endpoint which returns logs for all user's vehicles
 
 #### 4. Get Latest Vehicle Location
