@@ -649,9 +649,9 @@ const TrackingMaps: React.FC = () => {
   };
 
   // Handle checkpoint icon click
-  const handleCheckpointClick = (checkpointNumber: number) => {
-    setCurrentCheckpoint(checkpointNumber);
-  };
+  // const handleCheckpointClick = (checkpointNumber: number) => {
+  //   setCurrentCheckpoint(checkpointNumber);
+  // };
 
   const handleTimelineClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
